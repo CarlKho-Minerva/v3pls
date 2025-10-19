@@ -15,15 +15,6 @@ import seaborn as sns
 import sys
 import os
 
-# --- THIS IS THE CRITICAL CHANGE ---
-# Import the one, true feature extractor
-sys.path.insert(
-    0,
-    os.path.abspath(
-        os.path.join(os.path.dirname(__file__), "..", "src", "shared_utils")
-    ),
-)
-
 
 def extract_features_from_dataframe(df):
     """
