@@ -25,6 +25,14 @@ from pynput.keyboard import Controller, Key
 from zeroconf import ServiceInfo
 from zeroconf.asyncio import AsyncZeroconf
 
+# ============================================================
+# 🎛️  SYSTEM TOGGLES - Control what systems are active
+# ============================================================
+ENABLE_LOCOMOTION = False  # Turn OFF to test actions only
+ENABLE_ACTIONS = True  # Jump, Punch, Turns
+ENABLE_KEYBOARD_OUTPUT = True  # Set False to just see predictions
+# ============================================================
+
 
 # --- Import local modules ---
 def extract_features_from_dataframe(df):
@@ -91,6 +99,7 @@ LISTEN_IP, LISTEN_PORT = (
 KEY_MAP = {"left": Key.left, "right": Key.right, "jump": "z", "attack": "x"}
 ML_CONFIDENCE_THRESHOLD = 0.50  # Reduced from 0.60 for better responsiveness
 CONSENSUS_WINDOW = 2  # Reduced from 3 - require 2 matching predictions
+
 
 MODELS_DIR = Path(__file__).resolve().parents[1] / "models"
 # Binary classifier: simple walk vs idle (no noise needed here)
@@ -202,11 +211,17 @@ async def predictor(
 
                 if confidence >= ML_CONFIDENCE_THRESHOLD:
                     # INSTANT ACTIONS: punch/jump/turns execute immediately!
-                    if pred_type == "action" and gesture in ["punch", "jump", "turn_left", "turn_right"]:
+                    # FILTER: Don't send idle/noise to action queue
+                    if pred_type == "action" and gesture in [
+                        "punch",
+                        "jump",
+                        "turn_left",
+                        "turn_right",
+                    ]:
                         if result_queue.qsize() < result_queue.maxsize:
                             await result_queue.put((gesture, confidence))
                         prediction_history.clear()
-                    else:
+                    elif pred_type == "loco":
                         # Only locomotion requires consensus for stability
                         prediction_history.append(gesture)
                         # Require CONSENSUS_WINDOW matching predictions
@@ -290,6 +305,16 @@ async def handle_locomotion(
     """Handle locomotion commands from queue - REAL-TIME ONLY"""
     walk_confirmed = False
 
+    # Check if locomotion is disabled
+    if not ENABLE_LOCOMOTION:
+        # Clear the queue but don't process
+        while True:
+            try:
+                locomotion_queue.get_nowait()
+            except asyncio.QueueEmpty:
+                break
+        return is_walking, facing_direction, walk_confirmed
+
     # CLEAR OLD PREDICTIONS - Only use the latest one
     latest_gesture = None
     while True:
@@ -350,6 +375,10 @@ async def handle_action(
         except asyncio.QueueEmpty:
             break
 
+    # Check if actions are disabled
+    if not ENABLE_ACTIONS:
+        return facing_direction, is_walking
+
     # Process only the most recent prediction
     if latest_gesture:
         # Filter out noise predictions
@@ -366,7 +395,9 @@ async def handle_action(
                 old_direction = facing_direction
                 facing_direction = new_direction
 
-                print(f"{Colors.CYAN}🔄 Turned to face {facing_direction}!{Colors.RESET}")
+                print(
+                    f"{Colors.CYAN}🔄 Turned to face {facing_direction}!{Colors.RESET}"
+                )
 
                 # If walking, swap the pressed keys
                 if is_walking:
@@ -382,7 +413,10 @@ async def handle_action(
         # Handle INSTANT actions (punch/jump) - THESE STOP WALKING
         elif latest_gesture in ["jump", "punch"]:
             cooldown = last_action_time.get(latest_gesture, 0)
-            if now - cooldown > 0.3:  # 300ms cooldown per action type
+            # Reduced cooldown: 100ms for punch (rapid fire), 200ms for jump
+            cooldown_time = 0.1 if latest_gesture == "punch" else 0.2
+
+            if now - cooldown > cooldown_time:
                 # CRITICAL FIX: Stop walking when performing actions
                 if is_walking:
                     is_walking = False
@@ -390,18 +424,30 @@ async def handle_action(
                         if direction in pressed_keys:
                             keyboard.release(KEY_MAP[direction])
                             pressed_keys.discard(direction)
-                    print(f"{Colors.CYAN}🛑 Stopped walking to perform action{Colors.RESET}")
+                    print(
+                        f"{Colors.CYAN}🛑 Stopped walking to perform action{Colors.RESET}"
+                    )
 
                 # Perform the action
                 if latest_gesture == "jump":
-                    keyboard.press(KEY_MAP["jump"])
-                    keyboard.release(KEY_MAP["jump"])
+                    if ENABLE_KEYBOARD_OUTPUT:
+                        keyboard.press(KEY_MAP["jump"])
+                        keyboard.release(KEY_MAP["jump"])
+                    print(f"{Colors.GREEN}⬆️  JUMP!{Colors.RESET}")
                 elif latest_gesture == "punch":
-                    keyboard.press(KEY_MAP["attack"])
-                    keyboard.release(KEY_MAP["attack"])
+                    if ENABLE_KEYBOARD_OUTPUT:
+                        keyboard.press(KEY_MAP["attack"])
+                        keyboard.release(KEY_MAP["attack"])
+                    print(f"{Colors.RED}👊 PUNCH!{Colors.RESET}")
 
                 last_action_time[latest_gesture] = now
                 state.current_actor_state = f"{latest_gesture.capitalize()}!"
+            else:
+                # Cooldown rejected - show feedback
+                remaining = cooldown_time - (now - cooldown)
+                print(
+                    f"{Colors.YELLOW}⏳ {latest_gesture} on cooldown ({remaining*1000:.0f}ms){Colors.RESET}"
+                )
 
     return facing_direction, is_walking
 
@@ -433,6 +479,14 @@ async def dashboard(state, queues):
         )
         print(f"\n{Colors.BOLD}--- CONTROLLER STATE ---{Colors.RESET}")
         print(f"Actor State: {Colors.GREEN}{state.current_actor_state}{Colors.RESET}")
+
+        # Show system toggles
+        print(f"\n{Colors.BOLD}--- SYSTEM TOGGLES ---{Colors.RESET}")
+        loco_status = f"{Colors.GREEN}ON{Colors.RESET}" if ENABLE_LOCOMOTION else f"{Colors.RED}OFF{Colors.RESET}"
+        action_status = f"{Colors.GREEN}ON{Colors.RESET}" if ENABLE_ACTIONS else f"{Colors.RED}OFF{Colors.RESET}"
+        kb_status = f"{Colors.GREEN}ON{Colors.RESET}" if ENABLE_KEYBOARD_OUTPUT else f"{Colors.RED}OFF{Colors.RESET}"
+        print(f"Locomotion: {loco_status}  |  Actions: {action_status}  |  Keyboard: {kb_status}")
+
         print(f"\n{Colors.BOLD}--- INTERNAL QUEUES ---{Colors.RESET}")
         print(
             f"Locomotion Results: {queues['result_loco'].qsize()}  |  Action Results: {queues['result_action'].qsize()}"
