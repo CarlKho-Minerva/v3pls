@@ -134,7 +134,9 @@ def train_and_evaluate(X, y, classes, model_name, models_dir, feature_names):
         labels=sorted(all_classes_in_eval),
         target_names=target_names_present,
         zero_division=0
-    ))    print("💾 Saving models...")
+    ))
+
+    print("💾 Saving models...")
     models_path = Path(models_dir)
     models_path.mkdir(exist_ok=True)
     joblib.dump(svm, models_path / f"gesture_classifier_{model_name}.pkl")
@@ -160,7 +162,8 @@ def main():
     ORGANIZED_DATA_DIR = PROJECT_ROOT / "data" / "organized_training"
     MODELS_DIR = PROJECT_ROOT / "models"
 
-    binary_classes = ["walk", "idle", "noise"]
+    # Binary: simple walk vs idle detection
+    binary_classes = ["walk", "idle"]
     X_binary, y_binary, binary_feature_names = load_data(
         ORGANIZED_DATA_DIR / "binary_classification", binary_classes
     )
@@ -174,6 +177,7 @@ def main():
             binary_feature_names,
         )
 
+    # Multiclass: all actions including noise filtering
     multi_classes = ["jump", "punch", "turn_left", "turn_right", "idle", "noise"]
     X_multi, y_multi, multi_feature_names = load_data(
         ORGANIZED_DATA_DIR / "multiclass_classification", multi_classes

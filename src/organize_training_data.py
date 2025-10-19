@@ -55,7 +55,9 @@ def organize_files(input_dir, output_dir, target_samples):
     binary_path = output_path / "binary_classification"
     multi_path = output_path / "multiclass_classification"
 
-    locomotion_classes = ["walk", "idle", "noise"]
+    # Binary: simple walk vs idle (no noise - multiclass handles that)
+    locomotion_classes = ["walk", "idle"]
+    # Multiclass: all actions including noise filtering
     action_classes = ["jump", "punch", "turn_left", "turn_right", "idle", "noise"]
 
     for gesture in locomotion_classes:
@@ -101,21 +103,10 @@ def organize_files(input_dir, output_dir, target_samples):
                 print(f"  - ❌ ERROR: Source file not found: {src}")
                 continue
 
-            # Special handling for noise files
-            # noise_locomotion -> binary only
-            # noise_action -> multiclass only
-            # generic noise -> both
+            # Noise files only go to multiclass (for action filtering)
+            # Binary classifier doesn't need noise class
             if gesture == "noise":
-                if "noise_locomotion" in f_name and "locomotion" in str(binary_path):
-                    shutil.copy(src, binary_path / gesture / f_name)
-                elif "noise_action" in f_name and "multiclass" in str(multi_path):
-                    shutil.copy(src, multi_path / gesture / f_name)
-                elif "noise_locomotion" not in f_name and "noise_action" not in f_name:
-                    # Generic noise goes to both
-                    if gesture in locomotion_classes:
-                        shutil.copy(src, binary_path / gesture / f_name)
-                    if gesture in action_classes:
-                        shutil.copy(src, multi_path / gesture / f_name)
+                shutil.copy(src, multi_path / gesture / f_name)
                 continue
 
             # Copy to binary (locomotion) folder

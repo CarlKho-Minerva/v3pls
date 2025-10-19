@@ -93,14 +93,10 @@ ML_CONFIDENCE_THRESHOLD = 0.50  # Reduced from 0.60 for better responsiveness
 CONSENSUS_WINDOW = 2  # Reduced from 3 - require 2 matching predictions
 
 MODELS_DIR = Path(__file__).resolve().parents[1] / "models"
-BINARY_CLASSES, MULTI_CLASSES = ["walk", "idle", "noise"], [
-    "jump",
-    "punch",
-    "turn_left",
-    "turn_right",
-    "idle",
-    "noise",
-]
+# Binary classifier: simple walk vs idle (no noise needed here)
+BINARY_CLASSES = ["walk", "idle"]
+# Multiclass: all actions including noise filtering
+MULTI_CLASSES = ["jump", "punch", "turn_left", "turn_right", "idle", "noise"]
 
 # --- Model Loading ---
 models_binary = joblib.load(MODELS_DIR / "gesture_classifier_binary.pkl")
@@ -235,8 +231,8 @@ async def actor(locomotion_queue, action_queue, state):
         while True:
             now = time.time()
 
-            # Process actions FIRST to update direction state
-            facing_direction = await handle_action(
+            # Process actions FIRST - can stop walking and update direction
+            facing_direction, is_walking = await handle_action(
                 action_queue,
                 keyboard,
                 facing_direction,
@@ -246,7 +242,7 @@ async def actor(locomotion_queue, action_queue, state):
                 pressed_keys,
             )
 
-            # THEN, process locomotion based on the (potentially new) direction
+            # THEN, process locomotion based on the (potentially new) state
             is_walking, facing_direction, walk_confirmed = await handle_locomotion(
                 locomotion_queue,
                 keyboard,
@@ -351,7 +347,7 @@ async def handle_action(
     if latest_gesture:
         # Filter out noise predictions
         if latest_gesture == "noise":
-            return facing_direction
+            return facing_direction, is_walking
 
         now = time.time()
 
@@ -368,38 +364,35 @@ async def handle_action(
                     if old_direction in pressed_keys:
                         keyboard.release(KEY_MAP[old_direction])
                         pressed_keys.discard(old_direction)
-                    keyboard.press(KEY_MAP[new_direction])
-                    pressed_keys.add(new_direction)
+                    keyboard.press(KEY_MAP[facing_direction])
+                    pressed_keys.add(facing_direction)
+                    state.current_actor_state = f"Walking {facing_direction}"
 
-                state.current_actor_state = (
-                    f"Walking {facing_direction}"
-                    if is_walking
-                    else f"Facing {facing_direction}"
-                )
-            return facing_direction  # Return updated direction
+        # Handle INSTANT actions (punch/jump) - THESE STOP WALKING
+        elif latest_gesture in ["jump", "punch"]:
+            cooldown = last_action_time.get(latest_gesture, 0)
+            if now - cooldown > 0.3:  # 300ms cooldown per action type
+                # CRITICAL FIX: Stop walking when performing actions
+                if is_walking:
+                    is_walking = False
+                    for direction in ["left", "right"]:
+                        if direction in pressed_keys:
+                            keyboard.release(KEY_MAP[direction])
+                            pressed_keys.discard(direction)
+                    print(f"{Colors.CYAN}🛑 Stopped walking to perform action{Colors.RESET}")
 
-        # Filter out 'idle' predictions from the action queue
-        if latest_gesture == "idle":
-            return facing_direction
+                # Perform the action
+                if latest_gesture == "jump":
+                    keyboard.press(KEY_MAP["jump"])
+                    keyboard.release(KEY_MAP["jump"])
+                elif latest_gesture == "punch":
+                    keyboard.press(KEY_MAP["attack"])
+                    keyboard.release(KEY_MAP["attack"])
 
-        # Apply a DEBOUNCE/COOLDOWN for discrete actions (jump, punch)
-        action_cooldown = 0.5
-        if now - last_action_time.get(latest_gesture, 0) < action_cooldown:
-            return facing_direction
+                last_action_time[latest_gesture] = now
+                state.current_actor_state = f"{latest_gesture.capitalize()}!"
 
-        last_action_time[latest_gesture] = now
-
-        # Execute discrete actions asynchronously without blocking
-        if latest_gesture == "jump":
-            keyboard.press(KEY_MAP["jump"])
-            await asyncio.sleep(0.05)
-            keyboard.release(KEY_MAP["jump"])
-        elif latest_gesture == "punch":
-            keyboard.press(KEY_MAP["attack"])
-            await asyncio.sleep(0.05)
-            keyboard.release(KEY_MAP["attack"])
-
-    return facing_direction
+    return facing_direction, is_walking
 
 
 async def dashboard(state, queues):
