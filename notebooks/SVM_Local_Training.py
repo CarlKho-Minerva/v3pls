@@ -77,10 +77,37 @@ def train_and_evaluate(X, y, classes, model_name, models_dir, feature_names):
         print(f"Skipping training for {model_name}: only one class present.")
         return
 
-    # Use larger test size to ensure all classes are represented
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.25, random_state=42, stratify=y
-    )
+    # Check if we have enough samples per class for stratified split
+    unique, counts = np.unique(y, return_counts=True)
+    min_samples = counts.min()
+    
+    print(f"Dataset: {len(X)} samples, {len(unique)} classes")
+    for cls_idx, count in zip(unique, counts):
+        print(f"  - {classes[cls_idx]}: {count} samples")
+    
+    # Try multiple random states until all classes appear in test set
+    max_attempts = 10
+    for attempt in range(max_attempts):
+        random_state = 42 + attempt
+        
+        if min_samples < 10:
+            print(f"⚠️  Warning: Class with only {min_samples} samples.")
+            X_train, X_test, y_train, y_test = train_test_split(
+                X, y, test_size=0.3, random_state=random_state, stratify=None
+            )
+        else:
+            X_train, X_test, y_train, y_test = train_test_split(
+                X, y, test_size=0.3, random_state=random_state, stratify=y
+            )
+        
+        # Check if all classes are in the test set
+        classes_in_test = set(y_test)
+        if len(classes_in_test) == len(unique):
+            print(f"✓ All classes present in test set (attempt {attempt + 1})")
+            break
+        elif attempt == max_attempts - 1:
+            print(f"⚠️  Warning: Only {len(classes_in_test)}/{len(unique)} classes in test set after {max_attempts} attempts")
+    
     scaler = StandardScaler().fit(X_train)
     X_train_scaled, X_test_scaled = scaler.transform(X_train), scaler.transform(X_test)
 
@@ -90,18 +117,24 @@ def train_and_evaluate(X, y, classes, model_name, models_dir, feature_names):
 
     print("📈 Evaluating on test set...")
     y_pred = svm.predict(X_test_scaled)
+    
+    # Check which classes are actually in the test set
+    classes_in_test = np.unique(y_test)
+    classes_in_pred = np.unique(y_pred)
+    all_classes_in_eval = np.unique(np.concatenate([y_test, y_pred]))
+    
+    print(f"Classes in test set: {[classes[i] for i in classes_in_test]}")
+    print(f"Classes predicted: {[classes[i] for i in classes_in_pred]}")
+    
     print("\nClassification Report:")
-    # Get the actual classes present in the test set
-    labels_present = np.unique(np.concatenate([y_test, y_pred]))
-    target_names_present = [classes[i] for i in labels_present]
+    # Get the actual classes present in evaluation
+    target_names_present = [classes[i] for i in sorted(all_classes_in_eval)]
     print(classification_report(
         y_test, y_pred,
-        labels=labels_present,
+        labels=sorted(all_classes_in_eval),
         target_names=target_names_present,
         zero_division=0
-    ))
-
-    print("💾 Saving models...")
+    ))    print("💾 Saving models...")
     models_path = Path(models_dir)
     models_path.mkdir(exist_ok=True)
     joblib.dump(svm, models_path / f"gesture_classifier_{model_name}.pkl")

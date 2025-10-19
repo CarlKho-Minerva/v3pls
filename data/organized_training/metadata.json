@@ -1,9 +1,9 @@
 {
-  "turn_right": 100,
-  "jump": 100,
-  "punch": 100,
-  "walk": 71,
-  "turn_left": 100,
-  "idle": 74,
-  "noise": 100
+  "idle": 50,
+  "turn_left": 50,
+  "jump": 50,
+  "noise": 50,
+  "walk": 50,
+  "punch": 50,
+  "turn_right": 50
 }

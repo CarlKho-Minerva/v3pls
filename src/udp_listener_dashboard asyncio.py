@@ -226,7 +226,7 @@ async def actor(locomotion_queue, action_queue, state):
     facing_direction = "right"  # Start by facing right
     last_action_time = {}
     last_walk_confirmation = time.time()  # Track last walk signal
-    WALK_TIMEOUT = 1.5  # Auto-stop walking after 1.5s without confirmation
+    WALK_TIMEOUT = 0.8  # Auto-stop walking after 0.8s without confirmation (faster)
 
     # Track which keys are currently pressed
     pressed_keys = set()
@@ -297,13 +297,18 @@ async def handle_locomotion(
 
     # Process only the most recent prediction
     if latest_gesture:
-        # Filter out noise predictions
-        if latest_gesture == "noise":
-            return is_walking, facing_direction, walk_confirmed
-
         state_changed = False
 
-        if latest_gesture == "walk" and not is_walking:
+        # Noise or idle while walking = stop walking
+        if (latest_gesture == "noise" or latest_gesture == "idle") and is_walking:
+            is_walking = False
+            # Release both direction keys to ensure clean state
+            for direction in ["left", "right"]:
+                if direction in pressed_keys:
+                    keyboard.release(KEY_MAP[direction])
+                    pressed_keys.discard(direction)
+            state_changed = True
+        elif latest_gesture == "walk" and not is_walking:
             is_walking = True
             key = KEY_MAP[facing_direction]
             keyboard.press(key)
@@ -313,14 +318,6 @@ async def handle_locomotion(
         elif latest_gesture == "walk" and is_walking:
             # Already walking - this is a confirmation
             walk_confirmed = True
-        elif latest_gesture == "idle" and is_walking:
-            is_walking = False
-            # Release both direction keys to ensure clean state
-            for direction in ["left", "right"]:
-                if direction in pressed_keys:
-                    keyboard.release(KEY_MAP[direction])
-                    pressed_keys.discard(direction)
-            state_changed = True
 
         if state_changed:
             state.current_actor_state = (
