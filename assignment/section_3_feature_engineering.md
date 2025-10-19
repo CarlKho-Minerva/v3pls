@@ -176,7 +176,7 @@ You might ask: "Why hand-craft features? Why not use a CNN or LSTM?"
 
 Fair question. Here's why I didn't:
 
-1. **Data scarcity**: 40 samples per class is insufficient for deep learning (need 1000s)
+1. **Data scarcity**: ~72-100 samples per class is insufficient for deep learning (need 1000s)
 2. **Computational efficiency**: Feature extraction + SVM trains in seconds; CNN would require minutes/hours
 3. **Interpretability**: I can explain *why* each feature matters; CNN features are black boxes
 4. **CS156 scope**: Assignment 1 emphasizes classical ML; deep learning is Assignment 2/3 territory
@@ -349,15 +349,15 @@ def plot_class_distribution(y, classes, save_path=None):
 ```
 
 **For binary classifier:**
-- Walk: 40 samples
-- Idle: 40 samples
+- Walk: 71 samples
+- Idle: 74 samples
 
 **For multiclass classifier:**
-- Jump: 40 samples
-- Punch: 40 samples
+- Jump: 100 samples
+- Punch: 100 samples
 - Turn_left: 40 samples
 - Turn_right: 40 samples
-- Idle: 40 samples
+- Idle: 74 samples
 - Noise: 60 samples (30 locomotion + 30 action)
 
 Perfect balance except noise is deliberately oversampled (to ensure robust rejection of non-gesture movements).
@@ -370,7 +370,7 @@ Perfect balance except noise is deliberately oversampled (to ensure robust rejec
 
 **Data Scientist:** "The EDA section is thorough. Feature distribution plots and correlation matrix are exactly what I want to see. This proves the features actually discriminate between classes."
 
-**Machine Learning Engineer:** "The justification for NOT using deep learning is pragmatic and honest. 40 samples per class is indeed too small for CNNs. The SVM baseline is the right choice."
+**Machine Learning Engineer:** "The justification for NOT using deep learning is pragmatic and honest. ~72-100 samples per class is indeed too small for CNNs. The SVM baseline is the right choice."
 
 **Prof. Watson:** "One question: You have 48 features from a 40-sample-per-class dataset. Are you concerned about overfitting? What's your plan for dimensionality reduction or feature selection?"
 

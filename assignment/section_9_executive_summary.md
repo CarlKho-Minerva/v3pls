@@ -29,7 +29,7 @@
 **Why custom apps?** Initial voice-based labeling failed due to timestamp misalignment and class imbalance. Button-based labeling provides millisecond-precise temporal boundaries synchronized with sensor data.
 
 **Dataset:**
-- 280 labeled samples across 8 classes
+- 719 labeled samples across 8 classes
 - 40 samples per target gesture (walk, idle, punch, jump, turn_left, turn_right)
 - 60 samples of "noise" (non-gesture wrist movements)
 - Total: ~1200 seconds of motion data

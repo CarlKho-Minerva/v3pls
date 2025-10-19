@@ -131,7 +131,7 @@ If Sample 1 and Sample 2 go into training, and Sample 3 goes into testing, the m
 **However**, in my case, this is less of a concern because:
 1. Data collection spanned multiple sessions over 2 hours
 2. I deliberately varied my walking speed and arm swing between samples
-3. The 40 samples per class were NOT collected consecutively
+3. The ~72-100 samples per class were NOT collected consecutively
 
 But it's worth being aware of this **temporal autocorrelation** risk in time series ML.
 
@@ -163,7 +163,7 @@ X_train_multi, X_test_multi, y_train_multi, y_test_multi = train_test_split(
 
 **test_size=0.3 (30% test, 70% train)**
 
-Rule of thumb: 80/20 or 70/30 split. With 40 samples per class:
+Rule of thumb: 80/20 or 70/30 split. With ~72-100 samples per class:
 - 30% test ≈ 12 samples per class (reasonable for evaluation)
 - 70% train ≈ 28 samples per class (adequate for SVM)
 
@@ -184,7 +184,7 @@ Without stratification, random sampling might put all "turn_left" samples in tra
 - Each class appears in both train and test sets
 - Proportions match the original distribution
 
-For 40 samples per class with 70/30 split:
+For ~72-100 samples per class with 70/30 split:
 - Training: 28 samples per class
 - Testing: 12 samples per class
 

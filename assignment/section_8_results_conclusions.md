@@ -302,7 +302,7 @@ Data was collected indoors, standing still, with deliberate gestures. The model 
 
 ### Limitation #3: Small Dataset
 
-40 samples per class is minimal for ML standards. More data would likely improve:
+~72-100 samples per class is minimal for ML standards. More data would likely improve:
 - Generalization to edge cases (weak punches, subtle turns)
 - Robustness to sensor noise
 - Confidence calibration
@@ -367,7 +367,7 @@ Combine multiple models:
 
 **Computer Vision Specialist:** "The PCA decision boundary visualization is nice for intuition, even though you acknowledge it's approximate. The confidence threshold analysis is deployment-ready."
 
-**Prof. Watson:** "One question: You mention 40 samples per class is small. Have you computed learning curves to show if more data would help?"
+**Prof. Watson:** "One question: You mention ~72-100 samples per class is small. Have you computed learning curves to show if more data would help?"
 
 **Student (Carl):** "Not yet, but that's a great idea. I could subsample the data (10, 20, 30, 40 samples) and plot accuracy vs. dataset size. If the curve is still rising at 40, that proves more data would help."
 

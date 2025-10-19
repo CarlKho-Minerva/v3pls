@@ -1,0 +1,14 @@
+{
+  "binary": {
+    "idle": 74,
+    "walk": 71
+  },
+  "multiclass": {
+    "noise": 100,
+    "turn_left": 100,
+    "idle": 74,
+    "turn_right": 100,
+    "jump": 100,
+    "punch": 100
+  }
+}
