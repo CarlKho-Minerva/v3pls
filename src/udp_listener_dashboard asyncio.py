@@ -93,12 +93,13 @@ ML_CONFIDENCE_THRESHOLD = 0.50  # Reduced from 0.60 for better responsiveness
 CONSENSUS_WINDOW = 2  # Reduced from 3 - require 2 matching predictions
 
 MODELS_DIR = Path(__file__).resolve().parents[1] / "models"
-BINARY_CLASSES, MULTI_CLASSES = ["walk", "idle"], [
+BINARY_CLASSES, MULTI_CLASSES = ["walk", "idle", "noise"], [
     "jump",
     "punch",
     "turn_left",
     "turn_right",
     "idle",
+    "noise",
 ]
 
 # --- Model Loading ---
@@ -114,6 +115,7 @@ features_multiclass = joblib.load(MODELS_DIR / "feature_names_multiclass.pkl")
 async def distributor(sensor_queues, state):
     """Async distributor that streams sensor data to queues"""
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     sock.bind((LISTEN_IP, LISTEN_PORT))
     sock.setblocking(False)
 
@@ -223,12 +225,16 @@ async def actor(locomotion_queue, action_queue, state):
     is_walking = False
     facing_direction = "right"  # Start by facing right
     last_action_time = {}
+    last_walk_confirmation = time.time()  # Track last walk signal
+    WALK_TIMEOUT = 1.5  # Auto-stop walking after 1.5s without confirmation
 
     # Track which keys are currently pressed
     pressed_keys = set()
 
     try:
         while True:
+            now = time.time()
+
             # Process actions FIRST to update direction state
             facing_direction = await handle_action(
                 action_queue,
@@ -241,7 +247,7 @@ async def actor(locomotion_queue, action_queue, state):
             )
 
             # THEN, process locomotion based on the (potentially new) direction
-            is_walking, facing_direction = await handle_locomotion(
+            is_walking, facing_direction, walk_confirmed = await handle_locomotion(
                 locomotion_queue,
                 keyboard,
                 is_walking,
@@ -249,6 +255,20 @@ async def actor(locomotion_queue, action_queue, state):
                 state,
                 pressed_keys,
             )
+
+            # Update walk confirmation timestamp if walking was confirmed
+            if walk_confirmed:
+                last_walk_confirmation = now
+
+            # AUTO-STOP: If walking but no confirmation for WALK_TIMEOUT seconds
+            if is_walking and (now - last_walk_confirmation) > WALK_TIMEOUT:
+                is_walking = False
+                for direction in ["left", "right"]:
+                    if direction in pressed_keys:
+                        keyboard.release(KEY_MAP[direction])
+                        pressed_keys.discard(direction)
+                state.current_actor_state = "Idle (timeout)"
+                print(f"{Colors.YELLOW}⏱️  Walk timeout - auto-stopping{Colors.RESET}")
 
             # Yield control to allow other coroutines to run
             await asyncio.sleep(0.02)
@@ -264,18 +284,36 @@ async def actor(locomotion_queue, action_queue, state):
 async def handle_locomotion(
     locomotion_queue, keyboard, is_walking, facing_direction, state, pressed_keys
 ):
-    """Handle locomotion commands from queue"""
-    try:
-        gesture, _ = locomotion_queue.get_nowait()
+    """Handle locomotion commands from queue - REAL-TIME ONLY"""
+    walk_confirmed = False
+
+    # CLEAR OLD PREDICTIONS - Only use the latest one
+    latest_gesture = None
+    while True:
+        try:
+            latest_gesture, _ = locomotion_queue.get_nowait()
+        except asyncio.QueueEmpty:
+            break
+
+    # Process only the most recent prediction
+    if latest_gesture:
+        # Filter out noise predictions
+        if latest_gesture == "noise":
+            return is_walking, facing_direction, walk_confirmed
+
         state_changed = False
 
-        if gesture == "walk" and not is_walking:
+        if latest_gesture == "walk" and not is_walking:
             is_walking = True
             key = KEY_MAP[facing_direction]
             keyboard.press(key)
             pressed_keys.add(facing_direction)
             state_changed = True
-        elif gesture == "idle" and is_walking:
+            walk_confirmed = True
+        elif latest_gesture == "walk" and is_walking:
+            # Already walking - this is a confirmation
+            walk_confirmed = True
+        elif latest_gesture == "idle" and is_walking:
             is_walking = False
             # Release both direction keys to ensure clean state
             for direction in ["left", "right"]:
@@ -288,10 +326,8 @@ async def handle_locomotion(
             state.current_actor_state = (
                 f"Walking {facing_direction}" if is_walking else "Idle"
             )
-    except asyncio.QueueEmpty:
-        pass
 
-    return is_walking, facing_direction
+    return is_walking, facing_direction, walk_confirmed
 
 
 async def handle_action(
@@ -303,14 +339,28 @@ async def handle_action(
     state,
     pressed_keys,
 ):
-    """Handle action commands from queue"""
-    try:
-        gesture, confidence = action_queue.get_nowait()
+    """Handle action commands from queue - REAL-TIME ONLY"""
+
+    # CLEAR OLD PREDICTIONS - Only use the latest one
+    latest_gesture = None
+    latest_confidence = 0.0
+    while True:
+        try:
+            latest_gesture, latest_confidence = action_queue.get_nowait()
+        except asyncio.QueueEmpty:
+            break
+
+    # Process only the most recent prediction
+    if latest_gesture:
+        # Filter out noise predictions
+        if latest_gesture == "noise":
+            return facing_direction
+
         now = time.time()
 
         # Handle STATE changes (turns) immediately. No cooldown.
-        if gesture in ["turn_left", "turn_right"]:
-            new_direction = gesture.split("_")[1]
+        if latest_gesture in ["turn_left", "turn_right"]:
+            new_direction = latest_gesture.split("_")[1]
             if facing_direction != new_direction:
                 # Update direction
                 old_direction = facing_direction
@@ -332,28 +382,25 @@ async def handle_action(
             return facing_direction  # Return updated direction
 
         # Filter out 'idle' predictions from the action queue
-        if gesture == "idle":
+        if latest_gesture == "idle":
             return facing_direction
 
         # Apply a DEBOUNCE/COOLDOWN for discrete actions (jump, punch)
         action_cooldown = 0.5
-        if now - last_action_time.get(gesture, 0) < action_cooldown:
+        if now - last_action_time.get(latest_gesture, 0) < action_cooldown:
             return facing_direction
 
-        last_action_time[gesture] = now
+        last_action_time[latest_gesture] = now
 
         # Execute discrete actions asynchronously without blocking
-        if gesture == "jump":
+        if latest_gesture == "jump":
             keyboard.press(KEY_MAP["jump"])
             await asyncio.sleep(0.05)
             keyboard.release(KEY_MAP["jump"])
-        elif gesture == "punch":
+        elif latest_gesture == "punch":
             keyboard.press(KEY_MAP["attack"])
             await asyncio.sleep(0.05)
             keyboard.release(KEY_MAP["attack"])
-
-    except asyncio.QueueEmpty:
-        pass
 
     return facing_direction
 
@@ -412,7 +459,12 @@ async def main_async():
         addresses=[socket.inet_aton(LISTEN_IP)],
         port=LISTEN_PORT,
     )
-    await aiozc.async_register_service(service_info)
+
+    try:
+        await aiozc.async_register_service(service_info)
+    except Exception as e:
+        print(f"{Colors.YELLOW}⚠️  Service registration skipped: {e}{Colors.RESET}")
+        # Continue anyway - the UDP listener will still work
 
     try:
         # Create and run all async tasks concurrently

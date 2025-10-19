@@ -77,8 +77,9 @@ def train_and_evaluate(X, y, classes, model_name, models_dir, feature_names):
         print(f"Skipping training for {model_name}: only one class present.")
         return
 
+    # Use larger test size to ensure all classes are represented
     X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42, stratify=y
+        X, y, test_size=0.25, random_state=42, stratify=y
     )
     scaler = StandardScaler().fit(X_train)
     X_train_scaled, X_test_scaled = scaler.transform(X_train), scaler.transform(X_test)
@@ -90,7 +91,15 @@ def train_and_evaluate(X, y, classes, model_name, models_dir, feature_names):
     print("📈 Evaluating on test set...")
     y_pred = svm.predict(X_test_scaled)
     print("\nClassification Report:")
-    print(classification_report(y_test, y_pred, target_names=classes, zero_division=0))
+    # Get the actual classes present in the test set
+    labels_present = np.unique(np.concatenate([y_test, y_pred]))
+    target_names_present = [classes[i] for i in labels_present]
+    print(classification_report(
+        y_test, y_pred,
+        labels=labels_present,
+        target_names=target_names_present,
+        zero_division=0
+    ))
 
     print("💾 Saving models...")
     models_path = Path(models_dir)
@@ -118,7 +127,7 @@ def main():
     ORGANIZED_DATA_DIR = PROJECT_ROOT / "data" / "organized_training"
     MODELS_DIR = PROJECT_ROOT / "models"
 
-    binary_classes = ["walk", "idle"]
+    binary_classes = ["walk", "idle", "noise"]
     X_binary, y_binary, binary_feature_names = load_data(
         ORGANIZED_DATA_DIR / "binary_classification", binary_classes
     )
@@ -132,7 +141,7 @@ def main():
             binary_feature_names,
         )
 
-    multi_classes = ["jump", "punch", "turn_left", "turn_right", "idle"]
+    multi_classes = ["jump", "punch", "turn_left", "turn_right", "idle", "noise"]
     X_multi, y_multi, multi_feature_names = load_data(
         ORGANIZED_DATA_DIR / "multiclass_classification", multi_classes
     )

@@ -15,6 +15,13 @@ def get_gesture_name(filename):
         return "turn_left"
     if filename.startswith("turn_right"):
         return "turn_right"
+    # Handle noise with specific classifiers (noise_locomotion, noise_action)
+    if filename.startswith("noise_locomotion"):
+        return "noise"
+    if filename.startswith("noise_action"):
+        return "noise"
+    if filename.startswith("noise"):
+        return "noise"
     return filename.split("_")[0]
 
 
@@ -48,8 +55,8 @@ def organize_files(input_dir, output_dir, target_samples):
     binary_path = output_path / "binary_classification"
     multi_path = output_path / "multiclass_classification"
 
-    locomotion_classes = ["walk", "idle"]
-    action_classes = ["jump", "punch", "turn_left", "turn_right", "idle"]
+    locomotion_classes = ["walk", "idle", "noise"]
+    action_classes = ["jump", "punch", "turn_left", "turn_right", "idle", "noise"]
 
     for gesture in locomotion_classes:
         (binary_path / gesture).mkdir(parents=True, exist_ok=True)
@@ -83,7 +90,7 @@ def organize_files(input_dir, output_dir, target_samples):
             else:
                 balanced_files[gesture] = file_list
 
-    # Copy files, applying special logic for idle
+    # Copy files, applying special logic for idle and noise
     for gesture, file_list in balanced_files.items():
         for f_name in file_list:
             # --- THIS IS THE CRITICAL FIX ---
@@ -92,6 +99,23 @@ def organize_files(input_dir, output_dir, target_samples):
 
             if not src.exists():
                 print(f"  - ❌ ERROR: Source file not found: {src}")
+                continue
+
+            # Special handling for noise files
+            # noise_locomotion -> binary only
+            # noise_action -> multiclass only
+            # generic noise -> both
+            if gesture == "noise":
+                if "noise_locomotion" in f_name and "locomotion" in str(binary_path):
+                    shutil.copy(src, binary_path / gesture / f_name)
+                elif "noise_action" in f_name and "multiclass" in str(multi_path):
+                    shutil.copy(src, multi_path / gesture / f_name)
+                elif "noise_locomotion" not in f_name and "noise_action" not in f_name:
+                    # Generic noise goes to both
+                    if gesture in locomotion_classes:
+                        shutil.copy(src, binary_path / gesture / f_name)
+                    if gesture in action_classes:
+                        shutil.copy(src, multi_path / gesture / f_name)
                 continue
 
             # Copy to binary (locomotion) folder
