@@ -201,15 +201,22 @@ async def predictor(
                     state.last_action_pred = (gesture, confidence)
 
                 if confidence >= ML_CONFIDENCE_THRESHOLD:
-                    prediction_history.append(gesture)
-                    # Require CONSENSUS_WINDOW matching predictions
-                    if (
-                        len(prediction_history) == CONSENSUS_WINDOW
-                        and len(set(prediction_history)) == 1
-                    ):
+                    # INSTANT ACTIONS: punch/jump/turns execute immediately!
+                    if pred_type == "action" and gesture in ["punch", "jump", "turn_left", "turn_right"]:
                         if result_queue.qsize() < result_queue.maxsize:
                             await result_queue.put((gesture, confidence))
                         prediction_history.clear()
+                    else:
+                        # Only locomotion requires consensus for stability
+                        prediction_history.append(gesture)
+                        # Require CONSENSUS_WINDOW matching predictions
+                        if (
+                            len(prediction_history) == CONSENSUS_WINDOW
+                            and len(set(prediction_history)) == 1
+                        ):
+                            if result_queue.qsize() < result_queue.maxsize:
+                                await result_queue.put((gesture, confidence))
+                            prediction_history.clear()
         except asyncio.TimeoutError:
             await asyncio.sleep(0)
             continue
@@ -359,6 +366,8 @@ async def handle_action(
                 old_direction = facing_direction
                 facing_direction = new_direction
 
+                print(f"{Colors.CYAN}🔄 Turned to face {facing_direction}!{Colors.RESET}")
+
                 # If walking, swap the pressed keys
                 if is_walking:
                     if old_direction in pressed_keys:
@@ -367,6 +376,8 @@ async def handle_action(
                     keyboard.press(KEY_MAP[facing_direction])
                     pressed_keys.add(facing_direction)
                     state.current_actor_state = f"Walking {facing_direction}"
+                else:
+                    state.current_actor_state = f"Facing {facing_direction}"
 
         # Handle INSTANT actions (punch/jump) - THESE STOP WALKING
         elif latest_gesture in ["jump", "punch"]:
