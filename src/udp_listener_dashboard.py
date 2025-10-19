@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
 """
-Silksong ML Controller with Real-time Dashboard (FINAL - PURE THREADING)
+Silksong ML Controller with Real-time Dashboard (FINAL - SYNCHRONIZED)
 
-- Uses a robust, simple, pure multi-threading architecture. No asyncio.
+- NEW: Distributor now performs timestamp-based synchronization to ensure
+  that each data point sent to predictors contains perfectly matched
+  accelerometer and gyroscope readings from the same time window. This
+  fixes the race condition and matches the training data structure.
+- Pure multi-threading architecture.
 - Correctly imports shared utilities.
-- Implements the state-aware parallel Actor for responsive controls.
+- State-aware parallel Actor for responsive controls.
 - Live dashboard for real-time monitoring.
 """
 import socket
@@ -22,12 +26,10 @@ from pynput.keyboard import Controller, Key
 from zeroconf import ServiceInfo, Zeroconf
 import sys
 
-# --- FIX: CORRECTLY ADD SHARED_UTILS TO THE PATH ---
+# --- Correctly add shared_utils to the path ---
 sys.path.insert(
     0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "shared_utils"))
 )
-
-
 def extract_features_from_dataframe(df):
     """
     Extract features from a DataFrame containing sensor readings.
@@ -54,7 +56,6 @@ def extract_features_from_dataframe(df):
                     features[f"{axis}_fft_max"] = fft_vals.max()
                     features[f"{axis}_fft_mean"] = fft_vals.mean()
     return features
-
 
 import network_utils
 
@@ -110,9 +111,15 @@ models_multiclass = joblib.load(MODELS_DIR / "gesture_classifier_multiclass.pkl"
 scaler_multiclass = joblib.load(MODELS_DIR / "feature_scaler_multiclass.pkl")
 features_multiclass = joblib.load(MODELS_DIR / "feature_names_multiclass.pkl")
 
-
 # --- Worker Threads ---
+
+
 class Distributor(threading.Thread):
+    """
+    Receives raw sensor packets and distributes perfectly synchronized
+    (accel + gyro) readings to the predictor queues.
+    """
+
     def __init__(self, stop_event, queues, state):
         super().__init__(daemon=True)
         self.stop_event, self.queues, self.state = stop_event, queues, state
@@ -120,42 +127,77 @@ class Distributor(threading.Thread):
         self.sock.bind((LISTEN_IP, LISTEN_PORT))
         self.sock.settimeout(1.0)
         self.rate_tracker = deque(maxlen=100)
-        self.latest_accel = {"x": 0, "y": 0, "z": 0}
-        self.latest_gyro = {"x": 0, "y": 0, "z": 0}
+
+        # --- NEW SYNCHRONIZATION LOGIC ---
+        self.micro_buffer = {}  # Key: timestamp, Value: {'accel':..., 'gyro':...}
+        self.TIME_WINDOW_NS = 20 * 1_000_000  # 20ms window
 
     def run(self):
         while not self.stop_event.is_set():
             try:
                 data, _ = self.sock.recvfrom(2048)
                 msg = json.loads(data.decode())
-                sensor_type, values = msg.get("sensor"), msg.get("values", {})
-                if sensor_type == "linear_acceleration":
-                    self.latest_accel = values
-                elif sensor_type == "gyroscope":
-                    self.latest_gyro = values
-                else:
+
+                sensor_type = msg.get("sensor")
+                values = msg.get("values", {})
+                timestamp_ns = msg.get("timestamp_ns")
+
+                if not timestamp_ns:
                     continue
-                combined_reading = {
-                    "accel_x": self.latest_accel.get("x", 0),
-                    "accel_y": self.latest_accel.get("y", 0),
-                    "accel_z": self.latest_accel.get("z", 0),
-                    "gyro_x": self.latest_gyro.get("x", 0),
-                    "gyro_y": self.latest_gyro.get("y", 0),
-                    "gyro_z": self.latest_gyro.get("z", 0),
-                }
-                for q in self.queues:
-                    if not q.full():
-                        q.put(combined_reading)
-                now = time.time()
-                self.rate_tracker.append(now)
-                with self.state.lock:
-                    self.state.last_watch_data_time = now
-                    if len(self.rate_tracker) > 1:
-                        self.state.sensor_data_rate = len(self.rate_tracker) / (
-                            self.rate_tracker[-1] - self.rate_tracker[0]
-                        )
+
+                # Group by time window
+                window_key = (timestamp_ns // self.TIME_WINDOW_NS) * self.TIME_WINDOW_NS
+
+                if window_key not in self.micro_buffer:
+                    self.micro_buffer[window_key] = {}
+
+                if sensor_type == "linear_acceleration":
+                    self.micro_buffer[window_key]["accel"] = values
+                elif sensor_type == "gyroscope":
+                    self.micro_buffer[window_key]["gyro"] = values
+
+                # Check if we have a complete, synchronized reading
+                if (
+                    "accel" in self.micro_buffer[window_key]
+                    and "gyro" in self.micro_buffer[window_key]
+                ):
+                    accel_data = self.micro_buffer[window_key]["accel"]
+                    gyro_data = self.micro_buffer[window_key]["gyro"]
+
+                    combined_reading = {
+                        "accel_x": accel_data.get("x", 0),
+                        "accel_y": accel_data.get("y", 0),
+                        "accel_z": accel_data.get("z", 0),
+                        "gyro_x": gyro_data.get("x", 0),
+                        "gyro_y": gyro_data.get("y", 0),
+                        "gyro_z": gyro_data.get("z", 0),
+                    }
+
+                    for q in self.queues:
+                        if not q.full():
+                            q.put(combined_reading)
+
+                    # Update dashboard stats
+                    now = time.time()
+                    self.rate_tracker.append(now)
+                    with self.state.lock:
+                        self.state.last_watch_data_time = now
+                        if len(self.rate_tracker) > 1:
+                            self.state.sensor_data_rate = len(self.rate_tracker) / (
+                                self.rate_tracker[-1] - self.rate_tracker[0]
+                            )
+
+                    # Clean up old buffer entries
+                    del self.micro_buffer[window_key]
+                    if len(self.micro_buffer) > 100:
+                        oldest_key = min(self.micro_buffer.keys())
+                        del self.micro_buffer[oldest_key]
+
             except (socket.timeout, json.JSONDecodeError, KeyError):
                 continue
+
+
+# The rest of the classes (Predictor, Actor, Dashboard) remain the same
 
 
 class Predictor(threading.Thread):
@@ -308,9 +350,7 @@ class Actor(threading.Thread):
 class Dashboard(threading.Thread):
     def __init__(self, stop_event, state, queues):
         super().__init__(daemon=True)
-        self.stop_event = stop_event
-        self.state = state
-        self.queues = queues
+        self.stop_event, self.state, self.queues = stop_event, state, queues
 
     def run(self):
         while not self.stop_event.is_set():
@@ -320,7 +360,7 @@ class Dashboard(threading.Thread):
                 ) < 2.0
                 os.system("cls" if os.name == "nt" else "clear")
                 print(
-                    f"{Colors.BOLD}{Colors.CYAN}{'='*60}\n      Silksong ML Controller - Live Dashboard (THREADED)\n{'='*60}{Colors.RESET}"
+                    f"{Colors.BOLD}{Colors.CYAN}{'='*60}\n      Silksong ML Controller - Live Dashboard (SYNC)\n{'='*60}{Colors.RESET}"
                 )
                 watch_status = (
                     f"{Colors.GREEN}✓ CONNECTED{Colors.RESET}"
@@ -328,7 +368,7 @@ class Dashboard(threading.Thread):
                     else f"{Colors.RED}✗ DISCONNECTED{Colors.RESET}"
                 )
                 print(
-                    f"\n{Colors.BOLD}Watch Status: {watch_status}  |  Data Rate: {self.state.sensor_data_rate:.1f} Hz"
+                    f"\n{Colors.BOLD}Watch Status: {watch_status}  |  Synced Data Rate: {self.state.sensor_data_rate:.1f} Hz"
                 )
                 loco_pred, loco_conf = self.state.last_locomotion_pred
                 act_pred, act_conf = self.state.last_action_pred
@@ -354,15 +394,12 @@ class Dashboard(threading.Thread):
 def main():
     shared_state = SharedState()
     stop_event = threading.Event()
-    # Use standard thread-safe queues
     queues = {
         "sensor_loco": Queue(500),
         "sensor_action": Queue(200),
         "result_loco": Queue(10),
         "result_action": Queue(10),
     }
-
-    # Zeroconf runs fine in a thread
     zeroconf = Zeroconf()
     service_info = ServiceInfo(
         "_silksong._udp.local.",
@@ -371,7 +408,6 @@ def main():
         port=LISTEN_PORT,
     )
     zeroconf.register_service(service_info)
-
     threads = [
         Distributor(
             stop_event, [queues["sensor_loco"], queues["sensor_action"]], shared_state
@@ -405,16 +441,13 @@ def main():
     ]
     for t in threads:
         t.start()
-
     try:
-        # Keep main thread alive to catch KeyboardInterrupt
         while True:
             time.sleep(1)
     except KeyboardInterrupt:
         print("\n🛑 Shutting down...")
     finally:
         stop_event.set()
-        # Wait for threads to finish, but with a timeout
         for t in threads:
             t.join(timeout=1.0)
         zeroconf.unregister_service(service_info)

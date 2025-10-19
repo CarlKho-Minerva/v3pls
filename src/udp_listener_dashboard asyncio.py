@@ -22,8 +22,8 @@ import numpy as np
 from scipy.fft import rfft
 from scipy.stats import skew, kurtosis
 from pynput.keyboard import Controller, Key
-from zeroconf import ServiceInfo, Zeroconf
-import sys
+from zeroconf import ServiceInfo
+from zeroconf.asyncio import AsyncZeroconf
 
 
 # --- Import local modules ---
@@ -89,7 +89,8 @@ LISTEN_IP, LISTEN_PORT = (
     config["network"]["listen_port"],
 )
 KEY_MAP = {"left": Key.left, "right": Key.right, "jump": "z", "attack": "x"}
-ML_CONFIDENCE_THRESHOLD = 0.60  # Slightly increased for more reliable actions
+ML_CONFIDENCE_THRESHOLD = 0.50  # Reduced from 0.60 for better responsiveness
+CONSENSUS_WINDOW = 2  # Reduced from 3 - require 2 matching predictions
 
 MODELS_DIR = Path(__file__).resolve().parents[1] / "models"
 BINARY_CLASSES, MULTI_CLASSES = ["walk", "idle"], [
@@ -107,34 +108,6 @@ features_binary = joblib.load(MODELS_DIR / "feature_names_binary.pkl")
 models_multiclass = joblib.load(MODELS_DIR / "gesture_classifier_multiclass.pkl")
 scaler_multiclass = joblib.load(MODELS_DIR / "feature_scaler_multiclass.pkl")
 features_multiclass = joblib.load(MODELS_DIR / "feature_names_multiclass.pkl")
-
-
-def extract_features_from_dataframe(df):
-    """
-    Extract features from a DataFrame containing sensor readings.
-
-    Args:
-        df: DataFrame with columns: accel_x, accel_y, accel_z, gyro_x, gyro_y, gyro_z
-
-    Returns:
-        Dictionary of extracted features
-    """
-    features = {}
-    for axis in ["accel_x", "accel_y", "accel_z", "gyro_x", "gyro_y", "gyro_z"]:
-        signal = df[axis].dropna()
-        if len(signal) > 0:
-            features[f"{axis}_mean"] = signal.mean()
-            features[f"{axis}_std"] = signal.std()
-            features[f"{axis}_min"] = signal.min()
-            features[f"{axis}_max"] = signal.max()
-            features[f"{axis}_skew"] = skew(signal)
-            features[f"{axis}_kurtosis"] = kurtosis(signal)
-            if len(signal) > 2:
-                fft_vals = np.abs(rfft(signal.to_numpy()))[: len(signal) // 2]
-                if len(fft_vals) > 0:
-                    features[f"{axis}_fft_max"] = fft_vals.max()
-                    features[f"{axis}_fft_mean"] = fft_vals.mean()
-    return features
 
 
 # --- Worker Coroutines ---
@@ -204,7 +177,7 @@ async def predictor(
 ):
     """Async predictor that streams predictions"""
     buffer = deque(maxlen=window_size)
-    prediction_history = deque(maxlen=3)
+    prediction_history = deque(maxlen=CONSENSUS_WINDOW)
 
     while True:
         try:
@@ -231,8 +204,9 @@ async def predictor(
 
                 if confidence >= ML_CONFIDENCE_THRESHOLD:
                     prediction_history.append(gesture)
+                    # Require CONSENSUS_WINDOW matching predictions
                     if (
-                        len(prediction_history) == 3
+                        len(prediction_history) == CONSENSUS_WINDOW
                         and len(set(prediction_history)) == 1
                     ):
                         if result_queue.qsize() < result_queue.maxsize:
@@ -283,7 +257,7 @@ async def actor(locomotion_queue, action_queue, state):
         for key in pressed_keys:
             try:
                 keyboard.release(KEY_MAP.get(key, key))
-            except:
+            except Exception:
                 pass
 
 
@@ -430,14 +404,15 @@ async def main_async():
         "result_action": asyncio.Queue(10),
     }
 
-    zeroconf = Zeroconf()
+    # Use AsyncZeroconf for async context
+    aiozc = AsyncZeroconf()
     service_info = ServiceInfo(
         "_silksong._udp.local.",
-        f"SilksongController._silksong._udp.local.",
+        "SilksongController._silksong._udp.local.",
         addresses=[socket.inet_aton(LISTEN_IP)],
         port=LISTEN_PORT,
     )
-    zeroconf.register_service(service_info)
+    await aiozc.async_register_service(service_info)
 
     try:
         # Create and run all async tasks concurrently
@@ -471,8 +446,8 @@ async def main_async():
     except KeyboardInterrupt:
         print("\n🛑 Shutting down...")
     finally:
-        zeroconf.unregister_service(service_info)
-        zeroconf.close()
+        await aiozc.async_unregister_service(service_info)
+        await aiozc.async_close()
         print("✅ Controller stopped.")
 
 
