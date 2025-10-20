@@ -162,23 +162,14 @@ def main():
     ORGANIZED_DATA_DIR = PROJECT_ROOT / "data" / "organized_training"
     MODELS_DIR = PROJECT_ROOT / "models"
 
-    # Binary: simple walk vs idle detection
-    binary_classes = ["walk", "idle"]
-    X_binary, y_binary, binary_feature_names = load_data(
-        ORGANIZED_DATA_DIR / "binary_classification", binary_classes
-    )
-    if X_binary.size > 0:
-        train_and_evaluate(
-            X_binary,
-            y_binary,
-            binary_classes,
-            "binary",
-            MODELS_DIR,
-            binary_feature_names,
-        )
+    # NOTE: Binary classifier training is disabled. 
+    # The fuel walk system uses the multiclass classifier's "walk" vs "idle" predictions.
+    print("⚠️  Binary classifier training SKIPPED - using fuel walk system")
+    print("   Walk detection will be handled by multiclass classifier + fuel timeout")
 
-    # Multiclass: all actions including noise filtering
-    multi_classes = ["jump", "punch", "turn_left", "turn_right", "idle", "noise"]
+    # Multiclass: all actions including walk, idle, and noise filtering
+    # This classifier now handles EVERYTHING: walk, idle, jump, punch, turn_left, turn_right, noise
+    multi_classes = ["walk", "jump", "punch", "turn_left", "turn_right", "idle", "noise"]
     X_multi, y_multi, multi_feature_names = load_data(
         ORGANIZED_DATA_DIR / "multiclass_classification", multi_classes
     )
@@ -191,6 +182,8 @@ def main():
             MODELS_DIR,
             multi_feature_names,
         )
+    else:
+        print("❌ No training data found for multiclass classifier!")
 
 
 if __name__ == "__main__":

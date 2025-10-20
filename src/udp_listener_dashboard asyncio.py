@@ -28,7 +28,7 @@ from zeroconf.asyncio import AsyncZeroconf
 # ============================================================
 # 🎛️  SYSTEM TOGGLES - Control what systems are active
 # ============================================================
-ENABLE_LOCOMOTION = False  # Turn OFF to test actions only
+ENABLE_LOCOMOTION = True  # Fuel walk system - walk requires continuous confirmation
 ENABLE_ACTIONS = True  # Jump, Punch, Turns
 ENABLE_KEYBOARD_OUTPUT = True  # Set False to just see predictions
 # ============================================================
@@ -102,15 +102,13 @@ CONSENSUS_WINDOW = 2  # Reduced from 3 - require 2 matching predictions
 
 
 MODELS_DIR = Path(__file__).resolve().parents[1] / "models"
-# Binary classifier: simple walk vs idle (no noise needed here)
-BINARY_CLASSES = ["walk", "idle"]
-# Multiclass: all actions including noise filtering
-MULTI_CLASSES = ["jump", "punch", "turn_left", "turn_right", "idle", "noise"]
+# FUEL WALK SYSTEM: Only multiclass classifier is used
+# Walk detection uses "walk" vs "idle" predictions from multiclass + fuel timeout
+# Multiclass: all actions including walk, idle, and noise filtering
+MULTI_CLASSES = ["walk", "jump", "punch", "turn_left", "turn_right", "idle", "noise"]
 
 # --- Model Loading ---
-models_binary = joblib.load(MODELS_DIR / "gesture_classifier_binary.pkl")
-scaler_binary = joblib.load(MODELS_DIR / "feature_scaler_binary.pkl")
-features_binary = joblib.load(MODELS_DIR / "feature_names_binary.pkl")
+# NOTE: Binary classifier is NO LONGER USED - fuel walk system replaces it
 models_multiclass = joblib.load(MODELS_DIR / "gesture_classifier_multiclass.pkl")
 scaler_multiclass = joblib.load(MODELS_DIR / "feature_scaler_multiclass.pkl")
 features_multiclass = joblib.load(MODELS_DIR / "feature_names_multiclass.pkl")
@@ -210,28 +208,28 @@ async def predictor(
                     state.last_action_pred = (gesture, confidence)
 
                 if confidence >= ML_CONFIDENCE_THRESHOLD:
-                    # INSTANT ACTIONS: punch/jump/turns execute immediately!
-                    # FILTER: Don't send idle/noise to action queue
-                    if pred_type == "action" and gesture in [
-                        "punch",
-                        "jump",
-                        "turn_left",
-                        "turn_right",
-                    ]:
-                        if result_queue.qsize() < result_queue.maxsize:
-                            await result_queue.put((gesture, confidence))
-                        prediction_history.clear()
-                    elif pred_type == "loco":
-                        # Only locomotion requires consensus for stability
-                        prediction_history.append(gesture)
-                        # Require CONSENSUS_WINDOW matching predictions
-                        if (
-                            len(prediction_history) == CONSENSUS_WINDOW
-                            and len(set(prediction_history)) == 1
-                        ):
+                    if pred_type == "action":
+                        # INSTANT ACTIONS: punch/jump/turns execute immediately!
+                        # FILTER: Don't send idle/noise/walk to action queue
+                        if gesture in ["punch", "jump", "turn_left", "turn_right"]:
                             if result_queue.qsize() < result_queue.maxsize:
                                 await result_queue.put((gesture, confidence))
                             prediction_history.clear()
+                    elif pred_type == "loco":
+                        # FUEL WALK SYSTEM: Send walk/idle predictions through
+                        # Only locomotion predictions (walk/idle) require consensus for stability
+                        # This ensures smooth walk transitions and prevents jitter
+                        if gesture in ["walk", "idle"]:
+                            prediction_history.append(gesture)
+                            # Require CONSENSUS_WINDOW matching predictions
+                            if (
+                                len(prediction_history) == CONSENSUS_WINDOW
+                                and len(set(prediction_history)) == 1
+                            ):
+                                if result_queue.qsize() < result_queue.maxsize:
+                                    await result_queue.put((gesture, confidence))
+                                prediction_history.clear()
+                        # Noise predictions in locomotion queue are ignored (filtered out)
         except asyncio.TimeoutError:
             await asyncio.sleep(0)
             continue
@@ -522,17 +520,19 @@ async def main_async():
         # Continue anyway - the UDP listener will still work
 
     try:
-        # Create and run all async tasks concurrently
+        # FUEL WALK SYSTEM: Both locomotion and actions use the SAME multiclass classifier
+        # This creates a unified prediction system where walk/idle compete with all other actions
+        # The fuel timeout in the actor ensures walk only continues with confirmation
         await asyncio.gather(
             distributor([queues["sensor_loco"], queues["sensor_action"]], shared_state),
             predictor(
                 queues["sensor_loco"],
                 queues["result_loco"],
-                models_binary,
-                scaler_binary,
-                features_binary,
-                BINARY_CLASSES,
-                250,
+                models_multiclass,
+                scaler_multiclass,
+                features_multiclass,
+                MULTI_CLASSES,
+                250,  # Longer window for walk detection (more stable)
                 shared_state,
                 "loco",
             ),
@@ -543,7 +543,7 @@ async def main_async():
                 scaler_multiclass,
                 features_multiclass,
                 MULTI_CLASSES,
-                75,
+                75,  # Shorter window for action detection (more responsive)
                 shared_state,
                 "action",
             ),
