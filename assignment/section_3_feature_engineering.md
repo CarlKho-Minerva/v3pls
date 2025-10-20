@@ -48,7 +48,7 @@ By combining both, we capture complementary information:
 - Time-domain: "What is the overall magnitude and spread?"
 - Frequency-domain: "Are there periodic patterns or sharp transients?"
 
-This is not novel—it's standard practice from Bulling et al. (2014) and Lara & Labrador (2013). But it's non-obvious if you've only done image classification.
+This approach is standard practice in activity recognition research. Bulling et al. (2014) provide a comprehensive tutorial on these feature engineering techniques for body-worn sensors, while Lara & Labrador (2013) survey various time and frequency domain features used across gesture recognition systems. I learned from their work that combining both domains typically outperforms using either alone.
 
 ---
 

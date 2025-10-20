@@ -43,6 +43,9 @@ SVMs with RBF kernels handle continuous features naturally and generalize well w
 
 SVMs are the **pragmatic choice** for small, high-dimensional data where interpretability matters.
 
+**Learning Resources:**
+I developed my understanding of SVM mathematics primarily through StatQuest video tutorials (Josh Starmer's YouTube channel), which provided excellent visual intuitions for margin maximization and the kernel trick. This foundation was supplemented with the formal mathematical treatments in Cortes & Vapnik (1995) and Schölkopf & Smola (2002).
+
 ---
 
 ## Support Vector Machine: Mathematical Foundations
@@ -294,6 +297,59 @@ Fitting the scaler on test data would leak information about test set distributi
 - Useful for deployment: reject low-confidence predictions
 - Adds computational overhead during training (requires Platt scaling)
 
+### Multiclass Extension: One-vs-One (OVO)
+
+SVMs are inherently **binary classifiers**. For multiclass problems (6 classes in our case), `sklearn` uses the **One-vs-One** strategy:
+
+**How it works:**
+1. Train ${n \choose 2} = \frac{n(n-1)}{2}$ binary classifiers
+2. For 6 classes: ${6 \choose 2} = 15$ binary SVMs
+3. Each classifier votes for one of two classes
+4. Final prediction: class with most votes
+
+**Example for a single test sample:**
+
+```python
+# Multiclass prediction example
+# Classes: jump, punch, turn_left, turn_right, idle, noise
+
+# 15 binary classifiers cast votes:
+votes = {
+    'SVM(jump vs punch)': 'punch',
+    'SVM(jump vs turn_left)': 'jump',
+    'SVM(jump vs turn_right)': 'jump', 
+    'SVM(jump vs idle)': 'jump',
+    'SVM(jump vs noise)': 'jump',
+    'SVM(punch vs turn_left)': 'punch',
+    'SVM(punch vs turn_right)': 'punch',
+    'SVM(punch vs idle)': 'punch',
+    'SVM(punch vs noise)': 'punch',
+    'SVM(turn_left vs turn_right)': 'turn_left',
+    'SVM(turn_left vs idle)': 'turn_left',
+    'SVM(turn_left vs noise)': 'turn_left',
+    'SVM(turn_right vs idle)': 'turn_right',
+    'SVM(turn_right vs noise)': 'turn_right',
+    'SVM(idle vs noise)': 'noise'
+}
+
+# Count votes
+vote_count = {
+    'jump': 4,
+    'punch': 5,
+    'turn_left': 3,
+    'turn_right': 2,
+    'idle': 0,
+    'noise': 1
+}
+
+# Final prediction: punch (5 votes)
+```
+
+**Why OVO instead of One-vs-Rest?**
+- Each binary classifier trains on 2 classes, not all 6 (smaller, more balanced training sets)
+- More robust to class imbalance
+- Slight computational overhead (15 models instead of 6) is negligible for small data
+
 ---
 
 ## Mathematical Algorithm: Sequential Minimal Optimization (SMO)
@@ -425,10 +481,11 @@ function TrainSVM(X_train, y_train, C, γ):
 
 ## References for Section 5
 
-1. Cortes, C., & Vapnik, V. (1995). Support-vector networks. Machine Learning, 20(3), 273-297.
-2. Schölkopf, B., & Smola, A. J. (2002). Learning with Kernels: Support Vector Machines, Regularization, Optimization, and Beyond. MIT Press.
-3. Platt, J. (1998). Sequential minimal optimization: A fast algorithm for training support vector machines. Technical Report MSR-TR-98-14, Microsoft Research.
-4. Hsu, C. W., & Lin, C. J. (2002). A comparison of methods for multiclass support vector machines. IEEE Transactions on Neural Networks, 13(2), 415-425.
+1. Starmer, J. (StatQuest). Support Vector Machines. YouTube tutorial series. https://www.youtube.com/c/joshstarmer - Excellent visual explanations of margin maximization, kernel trick, and C parameter.
+2. Cortes, C., & Vapnik, V. (1995). Support-vector networks. Machine Learning, 20(3), 273-297.
+3. Schölkopf, B., & Smola, A. J. (2002). Learning with Kernels: Support Vector Machines, Regularization, Optimization, and Beyond. MIT Press.
+4. Platt, J. (1998). Sequential minimal optimization: A fast algorithm for training support vector machines. Technical Report MSR-TR-98-14, Microsoft Research.
+5. Hsu, C. W., & Lin, C. J. (2002). A comparison of methods for multiclass support vector machines. IEEE Transactions on Neural Networks, 13(2), 415-425.
 
 ---
 
