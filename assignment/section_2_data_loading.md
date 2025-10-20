@@ -29,6 +29,57 @@ Most tutorials assume labels are in a separate file or embedded as a column. Her
 1. Labels can't be accidentally overwritten during data processing
 2. File system operations (copy, move) preserve labels
 3. Timestamp information is immutable
+4. Preserves transparency - no hidden metadata modifications
+
+### Ethical Considerations in Data Collection
+
+**Privacy and Consent:**
+Since n=1 (only my own biosignals, locally processed), there are no immediate privacy concerns. However, this file naming convention was deliberately chosen with future ethical considerations in mind:
+
+- **Transparency**: Unix timestamps make data collection timing auditable
+- **No hidden identifiers**: Filenames contain no personally identifiable information beyond gesture type
+- **Local processing**: All sensor data stays on local devices during collection
+- **Deletability**: Easy to identify and remove specific samples if needed
+
+**Scaling Concerns:**
+If this system were deployed with multiple users, biometric identifiers (IMU patterns) could:
+- Reveal health conditions through gait analysis
+- Enable identity fingerprinting through unique movement patterns
+- Create blackmail material if movement data correlates with sensitive activities
+
+**Mitigation Strategy:**
+- Use file-based labeling (not database) for easy individual sample deletion
+- Avoid storing raw personally identifiable metadata in filenames
+- Keep data local to the device (no cloud upload in current implementation)
+- Clear data provenance through timestamp encoding
+
+This project demonstrates responsible data collection practices even for single-user research data.
+
+### Data Preprocessing Pipeline
+
+Before loading, raw sensor data undergoes two preprocessing steps via Python utilities:
+
+**Step 1: Sensor Row Merging (`src/merge_sensor_rows.py`)**
+
+The Pixel Watch sends separate rows for each sensor type (accelerometer, gyroscope, rotation). These must be merged into unified timestamped rows:
+
+```python
+# python src/merge_sensor_rows.py --input data/button_collected --output data/merged_training --single-folder
+# Merges rows like:
+# timestamp, sensor=accel, accel_x, accel_y, accel_z
+# timestamp, sensor=gyro, gyro_x, gyro_y, gyro_z
+# →
+# timestamp, accel_x, accel_y, accel_z, gyro_x, gyro_y, gyro_z, rot_x, rot_y, rot_z, rot_w
+```
+
+This script handles:
+- Timestamp alignment (groups by 20ms windows for 50Hz rate)
+- Missing sensor data (fills with zeros)
+- Sensor type detection and column mapping
+
+**Step 2: Task Organization (`src/organize_training_data.py`)**
+
+Copies merged files into task-specific directories (binary vs multiclass classification). Details in "Directory Organization" section below.
 
 ### Core Data Loading Function
 
@@ -158,6 +209,50 @@ Output:
 
 **Note on rotation quaternions:**
 The `rot_x`, `rot_y`, `rot_z`, `rot_w` columns represent device orientation as a quaternion. While mathematically elegant, I found these features less useful than accelerometer/gyroscope for gesture classification. They're primarily useful for orientation-invariant models, which is beyond this assignment scope.
+
+### Deep Dive: Dissecting a Single Punch Gesture
+
+Let's examine the raw data structure before merging. Here's what a single punch file looks like:
+
+**File**: `punch_1760926607918_to_1760926609396.csv` (duration: 1.478 seconds)
+
+**Raw structure (first 10 rows):**
+```
+accel_x,accel_y,accel_z,gyro_x,gyro_y,gyro_z,rot_w,rot_x,rot_y,rot_z,sensor,timestamp
+0.0,0.0,0.0,0.0,0.0,0.0,0.597,-0.454,-0.026,-0.661,rotation_vector,1595055077084
+0.0,0.0,0.0,0.0,0.0,0.0,0.641,-0.420,-0.022,-0.642,rotation_vector,1595075066317
+0.0,0.0,0.0,1.830,2.930,6.458,1.0,0.0,0.0,0.0,gyroscope,1595114999010
+0.0,0.0,0.0,0.0,0.0,0.0,0.684,-0.389,-0.002,-0.618,rotation_vector,1595095055553
+2.311,7.587,-5.032,0.0,0.0,0.0,1.0,0.0,0.0,0.0,linear_acceleration,1595095055553
+0.0,0.0,0.0,0.0,0.0,0.0,0.729,-0.358,0.033,-0.583,rotation_vector,1595114999010
+```
+
+**Key observations:**
+1. **Separate sensor rows**: Each sensor (accelerometer, gyroscope, rotation) sends data independently
+2. **Sparse values**: Many zeros where sensors haven't updated yet
+3. **Timestamp misalignment**: Sensors report at slightly different times (50Hz nominal, but async)
+
+This is why `merge_sensor_rows.py` is critical - it groups these by ~20ms windows:
+
+```python
+# Merge logic: Group by timestamp windows
+df["timestamp_group"] = (df["timestamp"] // 20000000) * 20000000  # 20ms windows
+
+# For each window, extract:
+merged_row = {
+    "accel_x": accel_row["accel_x"].iloc[0] if not accel_row.empty else 0.0,
+    "gyro_x": gyro_row["gyro_x"].iloc[0] if not gyro_row.empty else 0.0,
+    # ... etc for all 10 channels
+}
+```
+
+**After merging, the punch file becomes:**
+- 74 unified rows (1.478s × 50Hz ≈ 74 samples)
+- Each row has all 10 sensor channels populated
+- No more "sensor" column - data is denormalized
+
+**Why this matters:**
+Feature extraction (Section 3) computes statistics like mean, std, FFT. These require all sensor channels aligned in time. Separate rows would yield incorrect statistics.
 
 ### Directory Organization
 

@@ -119,7 +119,7 @@ Training a single model on both creates a feature extraction problem. The statis
 The dual classifier approach lets me:
 - Optimize window sizes independently
 - Use different feature sets for sustained vs. ballistic motion
-- Combine predictions hierarchically: first determine locomotion state, then check for discrete actions
+- **Parallel processing architecture**: Both classifiers run independently on the same sensor stream, allowing simultaneous detection of locomotion state AND discrete gestures (e.g., walking while jumping)
 
 This is **not** a common approach in academic gesture recognition papers, which typically force everything into a single model. But it reflects the actual structure of human movement.
 
