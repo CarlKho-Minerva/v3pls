@@ -91,12 +91,12 @@ This naming convention encodes:
 
 **Sample counts (as collected):**
 - Walk: 71 samples @ ~5-10 seconds each
-- Idle: 74 samples @ ~5-10 seconds each
-- Punch: 100 samples @ ~1-2 seconds each
-- Jump: 100 samples @ ~1-2 seconds each
-- Turn Left: 100 samples @ ~0.5-1 seconds each
-- Turn Right: 100 samples @ ~0.5-1 seconds each
-- Noise: 100 samples
+- Idle: 120 samples @ ~5-10 seconds each
+- Punch: 120 samples @ ~1-2 seconds each
+- Jump: 120 samples @ ~1-2 seconds each
+- Turn Left: 120 samples @ ~0.5-1 seconds each
+- Turn Right: 120 samples @ ~0.5-1 seconds each
+- Noise: 120 samples
 - 
 
 **Total dataset:** ~719 samples, ~1200 seconds of labeled motion data
@@ -119,7 +119,7 @@ Training a single model on both creates a feature extraction problem. The statis
 The dual classifier approach lets me:
 - Optimize window sizes independently
 - Use different feature sets for sustained vs. ballistic motion
-- Combine predictions hierarchically: first determine locomotion state, then check for discrete actions
+- **Parallel processing architecture**: Both classifiers run independently on the same sensor stream, allowing simultaneous detection of locomotion state AND discrete gestures (e.g., walking while jumping)
 
 This is **not** a common approach in academic gesture recognition papers, which typically force everything into a single model. But it reflects the actual structure of human movement.
 
@@ -162,7 +162,7 @@ For the notebook version of this section, include:
 
 5. **Figure 1.5**: Class distribution bar chart
    - Show sample counts for all 8 classes
-   - Caption: "Balanced dataset with 40 samples per target gesture class and 30 samples per noise class. Total: 719 labeled samples."
+   - Caption: "Balanced dataset with 120 samples per target gesture class (except walk with 71 samples). Total: 791 labeled samples."
 
 ---
 

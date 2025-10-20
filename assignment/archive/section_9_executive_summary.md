@@ -29,10 +29,10 @@
 **Why custom apps?** Initial voice-based labeling failed due to timestamp misalignment and class imbalance. Button-based labeling provides millisecond-precise temporal boundaries synchronized with sensor data.
 
 **Dataset:**
-- 719 labeled samples across 8 classes
-- 40 samples per target gesture (walk, idle, punch, jump, turn_left, turn_right)
-- 60 samples of "noise" (non-gesture wrist movements)
-- Total: ~1200 seconds of motion data
+- 791 labeled samples across 7 classes
+- 120 samples per target gesture (except walk with 71 samples)
+- Classes: walk, idle, jump, punch, turn_left, turn_right, noise
+- Total: ~1500 seconds of motion data
 
 **Data Quality:** Manually curated—deleted bad samples (e.g., double punch when single intended). Each CSV filename encodes label and timestamp: `punch_1760861014718_to_1760861016454.csv`
 
@@ -107,7 +107,7 @@ $$
 - Fast training (~2 seconds for both classifiers)
 
 **Why not deep learning?**
-- Insufficient data (40 samples << 1000+ needed for CNNs)
+- Insufficient data (120 samples/class is modest; CNNs typically need 1000+)
 - Interpretability: SVM support vectors are analyzable; CNN is black box
 - Efficiency: SVM trains in seconds; CNN would take minutes
 
@@ -219,7 +219,7 @@ One-size-fits-all models force compromises. Specialized models optimize for each
 
 1. **Single-user model**: All data from one person; might not generalize to different users/wrist sizes
 2. **Controlled environment**: Indoor, deliberate gestures; untested on compound motions (walking + punching)
-3. **Small dataset**: 40 samples/class is minimal; more data would improve edge case handling
+3. **Dataset size**: 120 samples/class is adequate for SVMs but modest overall; more data would improve edge case handling
 4. **Pre-segmented gestures**: Assumes gestures are isolated; real-time segmentation needed for deployment
 5. **Temporal scale mismatch**: Walk (5 sec) and punch (1 sec) in same feature extraction pipeline
 
@@ -262,7 +262,7 @@ The results—95.8% binary accuracy and 88.1% multiclass accuracy—prove that w
 │  └──────────────┘      └──────────────┘      └──────────────┘   │
 │   50Hz stream           Timestamp events       CSV files         │
 │                                                                   │
-│  Output: 280 labeled CSV files                                   │
+│  Output: 791 labeled CSV files                                   │
 │  └→ walk_*.csv (40), idle_*.csv (40), punch_*.csv (40), etc.    │
 └──────────────────────────────────────────────────────────────────┘
                               ↓

@@ -142,10 +142,10 @@ from sklearn.model_selection import train_test_split
 
 # Binary classifier split
 X_train, X_test, y_train, y_test = train_test_split(
-    X_binary,           # Feature matrix (80 samples × 48 features)
-    y_binary,           # Labels (80 samples)
-    test_size=0.3,      # 30% test set (24 samples), 70% train (56 samples)
-    random_state=42,    # Reproducibility
+    X_binary,           # Feature matrix (191 samples × 48 features)
+    y_binary,           # Labels (191 samples)
+    test_size=0.3,      # 30% test set (~57 samples), 70% train (~134 samples)
+    random_state=67,    # Reproducibility (67 as marker of 2025 meme landscape)
     stratify=y_binary   # Maintain class balance in both sets
 )
 
@@ -154,7 +154,7 @@ X_train_multi, X_test_multi, y_train_multi, y_test_multi = train_test_split(
     X_multi,
     y_multi,
     test_size=0.3,
-    random_state=42,
+    random_state=67,
     stratify=y_multi
 )
 ```
@@ -163,20 +163,20 @@ X_train_multi, X_test_multi, y_train_multi, y_test_multi = train_test_split(
 
 **test_size=0.3 (30% test, 70% train)**
 
-Rule of thumb: 80/20 or 70/30 split. With ~72-100 samples per class:
-- 30% test ≈ 12 samples per class (reasonable for evaluation)
-- 70% train ≈ 28 samples per class (adequate for SVM)
+Rule of thumb: 80/20 or 70/30 split. With 71-120 samples per class:
+- 30% test ≈ 21-36 samples per class (excellent for evaluation)
+- 70% train ≈ 50-84 samples per class (strong for SVM)
 
 I chose 70/30 over 80/20 to get more test samples (better statistical power in evaluation).
 
-**random_state=42 (reproducibility)**
+**random_state=67 (reproducibility)**
 
 Setting a fixed random seed ensures:
 - Same split every time I run the code
 - Reproducible results for grading/debugging
 - Fair comparison if I try different models
 
-The specific value (42) is a reference to *The Hitchhiker's Guide to the Galaxy* and is conventional in data science.
+The specific value (67) is chosen as a marker of the 2025 meme landscape and for transparency in this iteration of the project.
 
 **stratify=y (maintain class proportions)**
 
@@ -211,7 +211,7 @@ def train_and_evaluate(X, y, classes, model_name, models_dir, feature_names):
     # Try multiple random states until all classes appear in test set
     max_attempts = 10
     for attempt in range(max_attempts):
-        random_state = 42 + attempt
+        random_state = 67 + attempt
         
         if min_samples < 10:
             print(f"⚠️  Warning: Class with only {min_samples} samples.")
@@ -283,7 +283,9 @@ $$
 
 For binary task: $n = 80 \Rightarrow |\mathcal{I}_{\text{train}}| = 56, |\mathcal{I}_{\text{test}}| = 24$
 
-For multiclass task: $n = 280 \Rightarrow |\mathcal{I}_{\text{train}}| = 196, |\mathcal{I}_{\text{test}}| = 84$
+For binary task: $n = 191 \Rightarrow |\mathcal{I}_{\text{train}}| \approx 134, |\mathcal{I}_{\text{test}}| \approx 57$
+
+For multiclass task: $n = 720 \Rightarrow |\mathcal{I}_{\text{train}}| \approx 504, |\mathcal{I}_{\text{test}}| \approx 216$
 
 ---
 
@@ -330,23 +332,23 @@ But for this baseline implementation, single split is sufficient.
 
 A quick power analysis to justify our sample sizes:
 
-**Binary classification:** 2 classes, 40 samples each
-- Train: 28 samples per class × 2 = 56 total
-- Test: 12 samples per class × 2 = 24 total
+**Binary classification:** 2 classes (71 walk + 120 idle = 191 samples total)
+- Train: ~134 samples (70% split)
+- Test: ~57 samples (30% split)
 - Features: 48
 
-Ratio of training samples to features: $56/48 \approx 1.17$
+Ratio of training samples to features: $134/48 \approx 2.8$
 
-This is low (ideally want 10:1), but SVMs are robust to high-dimensional data due to the kernel trick and margin-based learning.
+This is modest (ideally want 10:1), but SVMs are robust to high-dimensional data due to the kernel trick and margin-based learning.
 
-**Multiclass classification:** 6 classes, ~40-60 samples each
-- Train: ~196 samples
-- Test: ~84 samples
+**Multiclass classification:** 6 classes, 120 samples each (720 total)
+- Train: ~504 samples (70% split)
+- Test: ~216 samples (30% split)
 - Features: 48
 
-Ratio: $196/48 \approx 4.1$
+Ratio: $504/48 \approx 10.5$
 
-Better, but still modest. This is why I'm using an SVM (handles high dimensions) rather than logistic regression or naive Bayes.
+Much better! This approaches the ideal 10:1 ratio, giving us confidence in generalization.
 
 For deep learning, I'd need 1000+ samples per class. For SVM, 30-40 is workable.
 

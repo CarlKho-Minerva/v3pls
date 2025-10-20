@@ -48,7 +48,7 @@ By combining both, we capture complementary information:
 - Time-domain: "What is the overall magnitude and spread?"
 - Frequency-domain: "Are there periodic patterns or sharp transients?"
 
-This is not novel—it's standard practice from Bulling et al. (2014) and Lara & Labrador (2013). But it's non-obvious if you've only done image classification.
+This approach is standard practice in activity recognition research. Bulling et al. (2014) provide a comprehensive tutorial on these feature engineering techniques for body-worn sensors, while Lara & Labrador (2013) survey various time and frequency domain features used across gesture recognition systems. I learned from their work that combining both domains typically outperforms using either alone.
 
 ---
 
@@ -353,14 +353,14 @@ def plot_class_distribution(y, classes, save_path=None):
 - Idle: 74 samples
 
 **For multiclass classifier:**
-- Jump: 100 samples
-- Punch: 100 samples
-- Turn_left: 40 samples
-- Turn_right: 40 samples
-- Idle: 74 samples
-- Noise: 60 samples (30 locomotion + 30 action)
+- Jump: 120 samples
+- Punch: 120 samples
+- Turn_left: 120 samples
+- Turn_right: 120 samples
+- Idle: 120 samples
+- Noise: 120 samples
 
-Perfect balance except noise is deliberately oversampled (to ensure robust rejection of non-gesture movements).
+Near-perfect balance across all gesture classes.
 
 ---
 
@@ -428,7 +428,7 @@ Applied to 6 axes (3 accel + 3 gyro) yields $6 \times 8 = 48$ features.
    - Caption: "Feature correlation matrix. Some redundancy expected (e.g., min/max), but most features capture independent information."
 
 4. **Figure 3.4**: Class distribution bar chart
-   - Caption: "Balanced dataset: 40 samples per target gesture, 60 samples for noise class."
+   - Caption: "Balanced dataset: 120 samples per target gesture class (except walk with 71 samples), 120 samples for noise class. Total: 791 samples."
 
 ---
 

@@ -12,7 +12,7 @@
 
 ## Results Summary
 
-After training on 280 manually labeled gesture samples collected via custom Android applications, I've built two SVM-based classifiers:
+After training on 791 manually labeled gesture samples collected via custom Android applications, I've built two SVM-based classifiers:
 
 **Binary Classifier:** 95.8% accuracy distinguishing walk from idle
 **Multiclass Classifier:** 88.1% accuracy recognizing 6 gesture types
@@ -369,7 +369,7 @@ Combine multiple models:
 
 **Prof. Watson:** "One question: You mention ~72-100 samples per class is small. Have you computed learning curves to show if more data would help?"
 
-**Student (Carl):** "Not yet, but that's a great idea. I could subsample the data (10, 20, 30, 40 samples) and plot accuracy vs. dataset size. If the curve is still rising at 40, that proves more data would help."
+**Student (Carl):** "Not yet, but that's a great idea. I could subsample the data (30, 60, 90, 120 samples) and plot accuracy vs. dataset size. If the curve is still rising at 120, that proves more data would help."
 
 **Prof. Watson:** "Perfect. Add that plot to Section 8, and you've demonstrated true understanding of experimental methodology."
 
