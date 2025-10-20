@@ -88,7 +88,7 @@ def train_and_evaluate(X, y, classes, model_name, models_dir, feature_names):
     # Try multiple random states until all classes appear in test set
     max_attempts = 10
     for attempt in range(max_attempts):
-        random_state = 42 + attempt
+        random_state = 67 + attempt
 
         if min_samples < 10:
             print(f"⚠️  Warning: Class with only {min_samples} samples.")
