@@ -162,14 +162,20 @@ def main():
     ORGANIZED_DATA_DIR = PROJECT_ROOT / "data" / "organized_training"
     MODELS_DIR = PROJECT_ROOT / "models"
 
-    # NOTE: Binary classifier training is disabled. 
-    # The fuel walk system uses the multiclass classifier's "walk" vs "idle" predictions.
-    print("⚠️  Binary classifier training SKIPPED - using fuel walk system")
-    print("   Walk detection will be handled by multiclass classifier + fuel timeout")
+    # ⚠️  NEW ARCHITECTURE: Fuel Walk + ML Actions
+    # - Walk detection: Pedometer (amplitude + gyro thresholds)
+    # - Action detection: Multiclass SVM (punch, jump, turns, idle, noise)
+    # - NO "walk" class in ML training - handled by physics-based fuel system
+    print("\n" + "="*60)
+    print("🎯 TRAINING: Multiclass Action Classifier (NO WALK)")
+    print("="*60)
+    print("✅ Walk detection: Fuel Walk System (pedometer)")
+    print("✅ Action detection: Multiclass SVM")
+    print("   Classes: jump, punch, turn_left, turn_right, idle, noise")
+    print("="*60 + "\n")
 
-    # Multiclass: all actions including walk, idle, and noise filtering
-    # This classifier now handles EVERYTHING: walk, idle, jump, punch, turn_left, turn_right, noise
-    multi_classes = ["walk", "jump", "punch", "turn_left", "turn_right", "idle", "noise"]
+    # Multiclass: Actions ONLY (no walk - it's handled by pedometer)
+    multi_classes = ["jump", "punch", "turn_left", "turn_right", "idle", "noise"]
     X_multi, y_multi, multi_feature_names = load_data(
         ORGANIZED_DATA_DIR / "multiclass_classification", multi_classes
     )
@@ -188,3 +194,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
