@@ -235,7 +235,7 @@ svm = SVC(
     C=10,                   # Regularization parameter (penalty for misclassification)
     gamma='auto',           # Kernel coefficient (1/n_features = 1/48)
     probability=True,       # Enable probability estimates for confidence scores
-    random_state=42         # Reproducibility for tie-breaking in multiclass
+    random_state=67         # Reproducibility for tie-breaking in multiclass
 )
 
 # Train the model

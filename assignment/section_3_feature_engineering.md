@@ -353,14 +353,14 @@ def plot_class_distribution(y, classes, save_path=None):
 - Idle: 74 samples
 
 **For multiclass classifier:**
-- Jump: 100 samples
-- Punch: 100 samples
-- Turn_left: 40 samples
-- Turn_right: 40 samples
-- Idle: 74 samples
-- Noise: 60 samples (30 locomotion + 30 action)
+- Jump: 120 samples
+- Punch: 120 samples
+- Turn_left: 120 samples
+- Turn_right: 120 samples
+- Idle: 120 samples
+- Noise: 120 samples
 
-Perfect balance except noise is deliberately oversampled (to ensure robust rejection of non-gesture movements).
+Near-perfect balance across all gesture classes.
 
 ---
 
@@ -428,7 +428,7 @@ Applied to 6 axes (3 accel + 3 gyro) yields $6 \times 8 = 48$ features.
    - Caption: "Feature correlation matrix. Some redundancy expected (e.g., min/max), but most features capture independent information."
 
 4. **Figure 3.4**: Class distribution bar chart
-   - Caption: "Balanced dataset: 40 samples per target gesture, 60 samples for noise class."
+   - Caption: "Balanced dataset: 120 samples per target gesture class (except walk with 71 samples), 120 samples for noise class. Total: 791 samples."
 
 ---
 

@@ -24,7 +24,7 @@ X_train_scaled = scaler.transform(X_train)
 X_test_scaled = scaler.transform(X_test)
 
 # Initialize and train SVM
-svm = SVC(kernel='rbf', C=10, gamma='auto', probability=True, random_state=42)
+svm = SVC(kernel='rbf', C=10, gamma='auto', probability=True, random_state=67)
 svm.fit(X_train_scaled, y_train)
 
 # Training complete!
@@ -317,14 +317,14 @@ X_binary, y_binary, binary_features = load_data(
 )
 
 X_train_b, X_test_b, y_train_b, y_test_b = train_test_split(
-    X_binary, y_binary, test_size=0.3, random_state=42, stratify=y_binary
+    X_binary, y_binary, test_size=0.3, random_state=67, stratify=y_binary
 )
 
 scaler_b = StandardScaler().fit(X_train_b)
 X_train_b_scaled = scaler_b.transform(X_train_b)
 X_test_b_scaled = scaler_b.transform(X_test_b)
 
-svm_binary = SVC(kernel='rbf', C=10, gamma='auto', probability=True, random_state=42)
+svm_binary = SVC(kernel='rbf', C=10, gamma='auto', probability=True, random_state=67)
 svm_binary.fit(X_train_b_scaled, y_train_b)
 
 print(f"✓ Training complete: {svm_binary.score(X_train_b_scaled, y_train_b):.1%} accuracy")
@@ -342,14 +342,14 @@ X_multi, y_multi, multi_features = load_data(
 )
 
 X_train_m, X_test_m, y_train_m, y_test_m = train_test_split(
-    X_multi, y_multi, test_size=0.3, random_state=42, stratify=y_multi
+    X_multi, y_multi, test_size=0.3, random_state=67, stratify=y_multi
 )
 
 scaler_m = StandardScaler().fit(X_train_m)
 X_train_m_scaled = scaler_m.transform(X_train_m)
 X_test_m_scaled = scaler_m.transform(X_test_m)
 
-svm_multi = SVC(kernel='rbf', C=10, gamma='auto', probability=True, random_state=42)
+svm_multi = SVC(kernel='rbf', C=10, gamma='auto', probability=True, random_state=67)
 svm_multi.fit(X_train_m_scaled, y_train_m)
 
 print(f"✓ Training complete: {svm_multi.score(X_train_m_scaled, y_train_m):.1%} accuracy")
