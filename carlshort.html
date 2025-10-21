@@ -8140,7 +8140,7 @@ Shape of the label vector y: (720,)
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
 <h4 id="3.3-%22%E2%80%A6perform-some-basic-exploratory-data-analysis%E2%80%A6%22---Proving-the-Features-Work">3.3 "…perform some basic exploratory data analysis…" - Proving the Features Work<a class="anchor-link" href="#3.3-%22%E2%80%A6perform-some-basic-exploratory-data-analysis%E2%80%A6%22---Proving-the-Features-Work">¶</a></h4><p>Feature engineering is only useful if the resulting features <em>actually</em> help separate the classes.</p>
-<p>I performed an Exploratory Data Analysis by loading my <code>binary_classification</code> dataset (<code>walk</code> vs. <code>idle</code>), applied my <code>extract_features</code> function to every sample, and then visualized the results.</p>
+<p>I performed an Exploratory Data Analysis by loading my <code>binary_classification</code> dataset (<code>walk</code> vs. <code>idle</code>), applied my <code>extract_features</code> function to every sample and assembled the resulting 48-feature vectors into a single pandas DataFrame. This DataFrame is the final, clean data structure that I can now visualize.</p>
 </div>
 </div>
 </div>
@@ -8779,21 +8779,7 @@ Multiclass model, scaler, and feature names saved to disk.
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
 <h4 id="6.1-%22%E2%80%A6necessary-cross-validation-or-hyperparameter-tuning.%22">6.1 "…necessary cross validation or hyperparameter tuning."<a class="anchor-link" href="#6.1-%22%E2%80%A6necessary-cross-validation-or-hyperparameter-tuning.%22">¶</a></h4><p>For this first assignment, I performed an informal hyperparameter search to select the <code>C</code> parameter for my SVM. The <code>C</code> parameter controls the trade-off between achieving a smooth (wide) margin and correctly classifying all training points.</p>
-<p>I created an additional 80/20  ⚠️⚠️⚠️⚠️⚠️⚠️ validation split from my training data. I then trained the model with three different values for <code>C</code>.</p>
-</div>
-</div>
-</div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs" id="cell-id=d08c9caf">
-<div class="jp-Cell-inputWrapper" tabindex="0">
-<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
-</div>
-<div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In [50]:</div>
-<div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
-<div class="cm-editor cm-s-jupyter">
-<div class="highlight hl-ipython3"><pre><span></span><span class="c1">## INFORMAL TRAINING HERE (SEE noteoboks)</span>
-</pre></div>
-</div>
+<p>I created an additional 70/30 validation split from my training data. I then trained the model with three different values for <code>C</code>.</p>
 </div>
 </div>
 </div>
@@ -8807,9 +8793,10 @@ Multiclass model, scaler, and feature names saved to disk.
 <p><strong>Figure 6.1: Validation Accuracy vs. Regularization Strength (C)</strong></p>
 <p><img alt="informalc.png" src="informalc.png"/></p>
 <blockquote>
-<p>Results from my informal hyperparameter search for the <code>C</code> parameter. ⚠️⚠️⚠️⚠️⚠️ CHECK VALUES HERE RERUN CODE CELLS ⚠️⚠️⚠️⚠️⚠️⚠️
-<code>C=1</code> resulted in a simpler model, <code>C=10</code> achieved the highest validation accuracy (95.0%). Accuracy began to decrease at <code>C=100</code> (overfitting). I selected <code>C=10</code> as the optimal value for my final model, as it provided the best performance on unseen data in this experiment.</p>
+<p>Results from my informal hyperparameter search for the <code>C</code> parameter. I measured the accuracy on a small validation set for three candidate values to balance the model's complexity against its performance.</p>
 </blockquote>
+<p><code>C=1</code> and <code>C=10</code> both got a validation accuracy of <strong>94.12%</strong>. Performance began to decrease at <code>C=100</code> (88.24%), a likely sign of overfitting. Since equal, the principle of parsimony (or Occam's razor) suggests choosing the simpler model. However, I chose to proceed with <strong><code>C=10</code></strong> for the final model.</p>
+<p>My reasoning is that gesture data is inherently complex, and a slightly more flexible model might better capture subtle patterns that weren't present in my small validation set.</p>
 <p>While <code>GridSearchCV</code> is a goal for the next assignment, this search provided a justification for selecting <code>C=10</code> vs default value.</p>
 </div>
 </div>
@@ -8821,7 +8808,7 @@ Multiclass model, scaler, and feature names saved to disk.
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h3 id="Section-7:-Predictions-and-Performance-Metrics"><strong>Section 7: Predictions and Performance Metrics</strong><a class="anchor-link" href="#Section-7:-Predictions-and-Performance-Metrics">¶</a></h3><h4 id="7.1-%22%E2%80%A6generate-predictions-for-out-of-sample-data%E2%80%A6%22">7.1 "…generate predictions for out of sample data…"<a class="anchor-link" href="#7.1-%22%E2%80%A6generate-predictions-for-out-of-sample-data%E2%80%A6%22">¶</a></h4><p>Model evaluation is judging performance <strong>only on data the model has never seen before</strong>. I applied the <strong>exact same scaling</strong> learned from the training set to the test set features (<code>X_test</code>). I ensured the use of the scaler that was <code>fit</code> on the training data to avoid leaking information from the test set. Then, I used the trained SVM to predict labels for the scaled test data.</p>
+<h3 id="Section-7:-Predictions-and-Performance-Metrics-(and-8:-Discussion)"><strong>Section 7: Predictions and Performance Metrics (and 8: Discussion)</strong><a class="anchor-link" href="#Section-7:-Predictions-and-Performance-Metrics-(and-8:-Discussion)">¶</a></h3><h4 id="7.1-%22%E2%80%A6generate-predictions-for-out-of-sample-data%E2%80%A6%22">7.1 "…generate predictions for out of sample data…"<a class="anchor-link" href="#7.1-%22%E2%80%A6generate-predictions-for-out-of-sample-data%E2%80%A6%22">¶</a></h4><p>Model evaluation is judging performance <strong>only on data the model has never seen before</strong>. I applied the <strong>exact same scaling</strong> learned from the training set to the test set features (<code>X_test</code>). I ensured the use of the scaler that was <code>fit</code> on the training data to avoid leaking information from the test set. Then, I used the trained SVM to predict labels for the scaled test data.</p>
 </div>
 </div>
 </div>
@@ -8979,7 +8966,7 @@ Multiclass Classifier Test Accuracy: 74.07%
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h4 id="7.3-Precision,-Recall,-and-F1-Score-%E2%9A%A0%EF%B8%8F%E2%9A%A0%EF%B8%8F%E2%9A%A0%EF%B8%8F%E2%9A%A0%EF%B8%8F%E2%9A%A0%EF%B8%8F%E2%9A%A0%EF%B8%8F-say-this-also-section-8?-double-check--%E2%9A%A0%EF%B8%8F%E2%9A%A0%EF%B8%8F%E2%9A%A0%EF%B8%8F%E2%9A%A0%EF%B8%8F%E2%9A%A0%EF%B8%8F%E2%9A%A0%EF%B8%8F">7.3 Precision, Recall, and F1-Score ⚠️⚠️⚠️⚠️⚠️⚠️ say this also section 8? double check  ⚠️⚠️⚠️⚠️⚠️⚠️<a class="anchor-link" href="#7.3-Precision,-Recall,-and-F1-Score-%E2%9A%A0%EF%B8%8F%E2%9A%A0%EF%B8%8F%E2%9A%A0%EF%B8%8F%E2%9A%A0%EF%B8%8F%E2%9A%A0%EF%B8%8F%E2%9A%A0%EF%B8%8F-say-this-also-section-8?-double-check--%E2%9A%A0%EF%B8%8F%E2%9A%A0%EF%B8%8F%E2%9A%A0%EF%B8%8F%E2%9A%A0%EF%B8%8F%E2%9A%A0%EF%B8%8F%E2%9A%A0%EF%B8%8F">¶</a></h4><p>To quantify the insights from the confusion matrix, I calculated the <strong>precision</strong>, <strong>recall</strong>, and <strong>F1-score</strong> for each class.
+<h4 id="7.3-Precision,-Recall,-and-F1-Score">7.3 Precision, Recall, and F1-Score<a class="anchor-link" href="#7.3-Precision,-Recall,-and-F1-Score">¶</a></h4><p>To quantify the insights from the confusion matrix, I calculated the <strong>precision</strong>, <strong>recall</strong>, and <strong>F1-score</strong> for each class.
 ⚠️⚠️⚠️⚠️⚠️⚠️ replcae w wikipedia ++ latex?  ⚠️⚠️⚠️⚠️⚠️⚠️</p>
 <ul>
 <li><strong>Precision:</strong> "Of all the times the model predicted this gesture, how often was it right?" (Measures false positives).</li>
@@ -8987,7 +8974,6 @@ Multiclass Classifier Test Accuracy: 74.07%
 <li><strong>F1-Score:</strong> The harmonic mean of precision and recall, providing a single, balanced measure of a classifier's performance for a given class.</li>
 </ul>
 <p>For playing <em>Silksong</em>, both are important: high precision is needed to prevent accidental actions, while high recall is needed to ensure the controls are responsive.</p>
-<p>⚠️⚠️⚠️⚠️⚠️⚠️ DO for Binary? ⚠️⚠️⚠️⚠️⚠️⚠️</p>
 <p><strong>Figure 7.3: Per-Class Performance Metrics for the Multiclass Classifier</strong></p>
 <p><img alt="perclass_multi.png" src="perclass_multi.png"/></p>
 <blockquote>
@@ -9090,79 +9076,48 @@ weighted avg      0.773     0.741     0.747       216
 </div>
 </div>
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=19a45c1c">
-<div class="jp-Cell-inputWrapper" tabindex="0">
-<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
-</div>
-<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
-</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h3 id="Section-8:-Results-and-Conclusions"><strong>Section 8: Results and Conclusions</strong><a class="anchor-link" href="#Section-8:-Results-and-Conclusions">¶</a></h3><p>⚠️⚠️⚠️⚠️⚠️⚠️ REDUNDANT ALERT  ⚠️⚠️⚠️⚠️⚠️⚠️</p>
-<h4 id="8.1-%22%E2%80%A6visualize-the-results%E2%80%A6%22---Performance-on-Unseen-Data">8.1 "…visualize the results…" - Performance on Unseen Data<a class="anchor-link" href="#8.1-%22%E2%80%A6visualize-the-results%E2%80%A6%22---Performance-on-Unseen-Data">¶</a></h4><p>After training, I evaluated both classifiers on their respective held-out test sets. The headline results are a clear success for the binary task but reveal significant challenges for the more complex multiclass task.</p>
-<ul>
-<li><strong>Binary Classifier (Walk vs. Idle):</strong> <strong>93.10% Test Accuracy</strong></li>
-<li><strong>Multiclass Classifier (6 Gestures):</strong> <strong>74.07% Test Accuracy</strong></li>
-</ul>
-<p>While a 74% accuracy is a strong signal that the model has learned meaningful patterns (far exceeding the 16.7% random baseline), it is not yet robust enough for a fast-paced game like <em>Silksong</em>. The following visualizations are not just a presentation of these numbers, but a diagnostic tool to understand <em>why</em> the model performed this way and what must be improved.</p>
-<p>The first and most important visualization is the confusion matrix, which breaks down the model's performance on a class-by-class basis.</p>
-</div>
-</div>
-</div>
-</div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=ea78205f">
-<div class="jp-Cell-inputWrapper" tabindex="0">
-<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
-</div>
-<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
-</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<p><strong>Figure 8.1: Confusion Matrices for Binary and Multiclass Classifiers</strong></p>
-<!-- ![Figure 8.1](https://storage.googleapis.com/agent-turn-images/figure_7_1_and_7_2_updated.png) -->
-<blockquote>
-<p>The confusion matrices for both classifiers on their unseen test sets.</p>
-</blockquote>
-<p><strong>(Left)</strong> The binary classifier shows excellent performance, with very few errors. The strong diagonal from top-left to bottom-right indicates most samples were correctly classified. <strong>(Right)</strong> The multiclass matrix is more complex. While the diagonal is still the strongest feature, the significant number of off-diagonal predictions reveals specific points of confusion between gestures like <code>punch</code>, <code>jump</code>, and <code>idle</code>.</p>
-</div>
-</div>
-</div>
-</div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=3a2453cf">
-<div class="jp-Cell-inputWrapper" tabindex="0">
-<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
-</div>
-<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
-</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<p>To quantify these visual patterns, I calculated the precision, recall, and F1-score for each gesture.</p>
-<p><strong>Figure 8.2: Per-Class Performance Metrics for the Multiclass Classifier</strong></p>
-<!-- ![Figure 8.2](https://storage.googleapis.com/agent-turn-images/figure_7_3_updated.png) -->
-<blockquote>
-<p><em>Caption: A bar chart of the precision, recall, and F1-score for each gesture on the test set. This plot clearly shows which gestures the model recognizes well (e.g., <code>turn_right</code> with 100% precision) versus which it struggles with (e.g., <code>punch</code> and <code>noise</code>, with F1-scores of 0.66 and 0.59 respectively). The disparity in performance across classes is a key insight for future improvements.</em></p>
-</blockquote>
-<p>⚠️⚠️⚠️⚠️⚠️⚠️ REDUNDANT ALERT  ⚠️⚠️⚠️⚠️⚠️⚠️</p>
-</div>
-</div>
-</div>
-</div>
 <div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=73212537">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h4 id="8.2-%22%E2%80%A6and-discuss-your-conclusions.%22---Interpretation-and-Next-Steps">8.2 "…and discuss your conclusions." - Interpretation and Next Steps<a class="anchor-link" href="#8.2-%22%E2%80%A6and-discuss-your-conclusions.%22---Interpretation-and-Next-Steps">¶</a></h4><p>My data collection and feature engineering pipeline is imperfect, but it works!</p>
-<p><strong>Conclusion 1: The Binary "Locomotion" Classifier is a Success.</strong>
-⚠️⚠️⚠️⚠️⚠️⚠️ add image again? ⚠️⚠️⚠️⚠️⚠️⚠️
-The binary classifier is highly effective. It made only four errors on 58 test samples. This proves that the statistical and spectral features I engineered can reliably distinguish the sustained, periodic motion of walking from the stationary state of being idle.</p>
+<h4 id="8.1-%22%E2%80%A6and-discuss-your-conclusions.%22">8.1 "…and discuss your conclusions."<a class="anchor-link" href="#8.1-%22%E2%80%A6and-discuss-your-conclusions.%22">¶</a></h4><p>My data collection and feature engineering pipeline is imperfect, but it works!</p>
+<p><strong>Conclusion 1: The Binary "Locomotion" Classifier is a Success.</strong></p>
+<p>The binary classifier made only four errors on 58 test samples. The statistical and spectral features I engineered can distinguish the motion of walking from being idle.</p>
+<p><img alt="binary.png" src="binary.png"/></p>
 <p><strong>Conclusion 2: The Multiclass "Action" Classifier is a Promising but Flawed Baseline.</strong>
 A 74.1% accuracy is a start, but the model struggles with <code>punch</code> and <code>noise</code>, achieving F1-scores below 0.70.</p>
 <ul>
-<li><p><strong>The <code>punch</code> problem:</strong> The confusion matrix shows that <code>punch</code> gestures were most often confused with <code>jump</code> and <code>idle</code>. This suggests my feature set is not distinct enough to separate these short, ballistic motions from each other or from a brief return to an idle state.
-⚠️⚠️⚠️⚠️⚠️⚠️ viz each csv?  ⚠️⚠️⚠️⚠️⚠️⚠️</p>
-</li>
-<li><p><strong>The <code>noise</code> problem:</strong> The model incorrectly classified 12 <code>noise</code> samples as <code>idle</code>, indicating it struggles to distinguish random, low-energy movements from true stillness.</p>
-</li>
+<li><strong>The <code>punch</code> problem:</strong> The confusion matrix shows that <code>punch</code> gestures were most often confused with <code>jump</code> and <code>idle</code>. This suggests my feature set is not distinct enough to separate these short, ballistic motions from each other or from a brief return to an idle state.
+<img alt="81raw.png" src="81raw.png"/></li>
 </ul>
-<p>⚠️⚠️⚠️⚠️⚠️⚠️ viz too? ⚠️⚠️⚠️⚠️⚠️⚠️</p>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=a7d573ae">
+<div class="jp-Cell-inputWrapper" tabindex="0">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
+</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
+<ul>
+<li><strong>The <code>noise</code> problem:</strong> The model incorrectly classified 12 <code>noise</code> samples as <code>idle</code>, indicating it struggles to distinguish random, low-energy movements from true stillness.</li>
+</ul>
+<p><img alt="82raw.png" src="82raw.png"/></p>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=dd50f2da">
+<div class="jp-Cell-inputWrapper" tabindex="0">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
+</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
 <p>For a game like <em>Silksong</em>, this is <strong>unacceptable</strong>. A 57% precision on <code>punch</code> means that nearly half the time the model predicts an attack, it's wrong, which would lead to a frustrating user experience.</p>
-<p><strong>Side Note</strong>: Didnt get to make controller ⚠️⚠️⚠️⚠️⚠️⚠️ GIF HERE ⚠️⚠️⚠️⚠️⚠️⚠️</p>
+<p><strong>Side Note</strong>: No gameplay yet as the the way to integrate the two models into a real-time system is still being developed.</p>
 <p><strong>Conclusion 3: My Feature Set Has Clear Strengths and Weaknesses.</strong>
 To understand <em>why</em> certain gestures were confused, I would need to perform a feature importance analysis. An SVM does not provide this directly, but by inspecting the model's internal coefficients, I could generate a plot:</p>
 </div>
@@ -9236,8 +9191,8 @@ To understand <em>why</em> certain gestures were confused, I would need to perfo
 </ul>
 </li>
 </ol>
-<h4 id="Between-you-and-me,-prof">Between you and me, prof<a class="anchor-link" href="#Between-you-and-me,-prof">¶</a></h4><blockquote>
-<p>I have tried #3 and it's performed worse (30%). It's also why I submitted late. But maybe it's because I haven't learned enough yet after pivoting from EMG project. Excluding this from my word count, which has already killed so much of my darlings (aka sound, analytical writeup which I will place on my <a href="https://somach.vercel.app/">blog</a> instead).</p>
+<h1 id="Between-you-and-me,-prof">Between you and me, prof<a class="anchor-link" href="#Between-you-and-me,-prof">¶</a></h1><blockquote>
+<p>I have tried a pre-trained CNN and it's performed worse (30%). It's also why I submitted late. But maybe it's because I haven't learned enough yet after pivoting from EMG project. Excluding this from my word count, which has already killed so much of my darlings (aka sound, analytical writeup which I will place on my <a href="https://somach.vercel.app/">blog</a> instead).</p>
 </blockquote>
 </div>
 </div>
@@ -9385,15 +9340,15 @@ To understand <em>why</em> certain gestures were confused, I would need to perfo
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<h3 id="Section-10:-References"><strong>Section 10: References</strong><a class="anchor-link" href="#Section-10:-References">¶</a></h3><h4 id="10.1-%22%E2%80%A6references-for-documents,-guides,-or-code-repos%E2%80%A6%22---Key-Resources">10.1 "…references for documents, guides, or code repos…" - Key Resources<a class="anchor-link" href="#10.1-%22%E2%80%A6references-for-documents,-guides,-or-code-repos%E2%80%A6%22---Key-Resources">¶</a></h4><p>This project was built on the foundation of prior academic work and excellent open-source documentation. The following list is not exhaustive, but it highlights the key resources I consulted to understand the theory, implement the code, and make informed decisions.</p>
+<h3 id="Section-10:-References"><strong>Section 10: References</strong><a class="anchor-link" href="#Section-10:-References">¶</a></h3><h4 id="10.1-%22%E2%80%A6references-for-documents,-guides,-or-code-repos%E2%80%A6%22---Key-Resources">10.1 "…references for documents, guides, or code repos…" - Key Resources<a class="anchor-link" href="#10.1-%22%E2%80%A6references-for-documents,-guides,-or-code-repos%E2%80%A6%22---Key-Resources">¶</a></h4><p>This project was built on prior academic work and open-source documentation. The following list highlights the key resources I consulted to understand the theory, implement the code, and make informed decisions.</p>
 <p><strong>Core Machine Learning Theory:</strong></p>
 <ol>
-<li><p><strong>Cortes, C., &amp; Vapnik, V. (1995).</strong> <em>Support-vector networks</em>. Machine Learning, 20(3), 273-297.</p>
+<li><p><strong>Cortes, C., &amp; Vapnik, V. (1995).</strong> <em>Support-vector networks</em>. Machine Learning, 20(3), 273-297. <a href="https://link.springer.com/article/10.1007/BF00994018">https://link.springer.com/article/10.1007/BF00994018</a></p>
 <ul>
 <li>I felt it was important to go back to the original paper that introduced the SVM. It provided the foundational mathematical context for the algorithm.</li>
 </ul>
 </li>
-<li><p><strong>Starmer, J. (StatQuest).</strong> <em>StatQuest: Support Vector Machines (SVMs)</em>. YouTube.</p>
+<li><p><strong>Starmer, J. (StatQuest).</strong> <em>StatQuest: Support Vector Machines (SVMs)</em>. YouTube. <a href="https://www.youtube.com/watch?v=efR1C6CvhmE">https://www.youtube.com/watch?v=efR1C6CvhmE</a></p>
 <ul>
 <li>This was my primary resource for building an intuitive understanding. Starmer's visual explanations of the maximum margin, the soft margin, and the kernel trick were invaluable for connecting the dense mathematics to practical reality.</li>
 </ul>
@@ -9401,19 +9356,19 @@ To understand <em>why</em> certain gestures were confused, I would need to perfo
 </ol>
 <p><strong>Human Activity Recognition &amp; Feature Engineering:</strong></p>
 <ol start="3">
-<li><strong>Bulling, A., Blanke, U., &amp; Schiele, B. (2014).</strong> <em>A tutorial on human activity recognition using body-worn inertial sensors</em>. ACM Computing Surveys, 46(3), 1-33.<ul>
+<li><strong>Bulling, A., Blanke, U., &amp; Schiele, B. (2014).</strong> <em>A tutorial on human activity recognition using body-worn inertial sensors</em>. ACM Computing Surveys, 46(3), 1-33. <a href="https://dl.acm.org/doi/10.1145/2499621">https://dl.acm.org/doi/10.1145/2499621</a><ul>
 <li>This paper was the blueprint for my feature engineering strategy. It provided a thorough justification for combining time-domain and frequency-domain features, which directly informed the design of my <code>extract_features</code> function.</li>
 </ul>
 </li>
 </ol>
 <p><strong>Software Libraries and Documentation:</strong></p>
 <ol start="4">
-<li><p><strong>Pedregosa, F., et al. (2011).</strong> <em>Scikit-learn: Machine learning in Python</em>. Journal of Machine Learning Research, 12, 2825-2830.</p>
+<li><p><strong>Pedregosa, F., et al. (2011).</strong> <em>Scikit-learn: Machine learning in Python</em>. Journal of Machine Learning Research, 12, 2825-2830. <a href="https://www.jmlr.org/papers/v12/pedregosa11a.html">https://www.jmlr.org/papers/v12/pedregosa11a.html</a> (<a href="https://github.com/scikit-learn/scikit-learn">https://github.com/scikit-learn/scikit-learn</a>)</p>
 <ul>
 <li>The entire project relies on the <code>scikit-learn</code> library. The official documentation, particularly the user guides for <code>StandardScaler</code> and <code>SVC</code>, was a constant reference.</li>
 </ul>
 </li>
-<li><p><strong>Harris, C. R., et al. (2020).</strong> <em>Array programming with NumPy</em>. Nature, 585(7825), 357-362. &amp; <strong>McKinney, W. (2010).</strong> <em>Data structures for statistical computing in python</em>.</p>
+<li><p><strong>Harris, C. R., et al. (2020).</strong> <em>Array programming with NumPy</em>. Nature, 585(7825), 357-362. &amp; <strong>McKinney, W. (2010).</strong> <em>Data structures for statistical computing in python</em>. <a href="https://www.nature.com/articles/s41586-020-2649-2">https://www.nature.com/articles/s41586-020-2649-2</a></p>
 <ul>
 <li>These two libraries, NumPy and pandas, were the backbone of my entire data manipulation and feature extraction pipeline.</li>
 </ul>
@@ -9421,16 +9376,28 @@ To understand <em>why</em> certain gestures were confused, I would need to perfo
 </ol>
 <h4 id="10.2-Statement-on-AI-Use">10.2 Statement on AI Use<a class="anchor-link" href="#10.2-Statement-on-AI-Use">¶</a></h4><p>Throughout this project, I used a large language model (AI) as a tool to support my work, primarily in two capacities:</p>
 <ol>
+<li><p><strong>As a Co-Pilot for Android Development:</strong> I used the AI <strong>extensively</strong> when building the two custom Android applications. As I am not a professional Android developer, I utilized the AI as a pair programmer to accelerate the process. I would describe the required functionality—such as "write a Kotlin function to stream accelerometer data over UDP" or "create a 2x6 button grid in Jetpack Compose"—and the AI would generate the boilerplate code. My role was to act as the architect: designing the overall structure, integrating the AI-generated snippets, debugging the inevitable issues, and refining the code until it met my specific requirements. The apps would not have been possible in the given timeframe without this level of AI assistance.</p>
+</li>
 <li><p><strong>As a Brainstorming Buddy:</strong> When faced with a problem, such as how to handle the variable-length time-series data, I would discuss the trade-offs of different approaches (e.g., padding vs. truncation vs. feature extraction) with the AI. This helped me clarify my own thinking and structure my arguments, but the final decision was always my own, based on my understanding of the project's goals.</p>
 </li>
 <li><p><strong>As a Guide to Resources:</strong> When I knew I needed a specific visualization but was unsure of the best <code>matplotlib</code> or <code>seaborn</code> implementation, I used the AI to find relevant documentation and code examples. For instance, I asked it for "the best way to plot a non-linear SVM decision boundary," which pointed me toward the <code>np.meshgrid</code> and <code>ax.contourf</code> techniques that I then adapted for my own data.</p>
 </li>
 </ol>
-<p>The AI did not write the core logic of my data pipeline or my model implementation. I treated it as a highly-efficient, interactive search engine and a Socratic partner to challenge my assumptions. All final code, analysis, and writing in this notebook are my own.</p>
-<h4 id="10.3-Project-Code-Repository">10.3 Project Code Repository<a class="anchor-link" href="#10.3-Project-Code-Repository">¶</a></h4><p>All of the code, data, and supplementary materials for this project are available in a public GitHub repository. This includes the Android app source code, the Python data processing scripts, and the trained models.</p>
+<p>I treated AI as a highly-efficient, interactive search engine and a Socratic partner to challenge my assumptions.</p>
+<h4 id="10.3-Project-Code-Repository">10.3 Project Code Repository<a class="anchor-link" href="#10.3-Project-Code-Repository">¶</a></h4><p>All of the code, data, and supplementary materials for this project are available in a public GitHub repository. This includes the Android app source code, the Python data processing scripts, and the appendix for the figures generated.</p>
 <ul>
 <li><strong>GitHub Repository:</strong> <code>https://github.com/CarlKho-Minerva/v3pls</code></li>
 </ul>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=a7bdbf99">
+<div class="jp-Cell-inputWrapper" tabindex="0">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
+</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
 </div>
 </div>
 </div>
