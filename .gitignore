@@ -1,5 +1,5 @@
 /.venv/
-
+/assignment/
 # /data/
 __pycache__/
 *.pyc
