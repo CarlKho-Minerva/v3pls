@@ -22,7 +22,7 @@ This reduces computation by ~8-9x compared to standard CNNs, enabling <10ms late
 ## 4. Visual "Show Not Tell"
 ### 3.1. What the Model Sees (Spectrograms)
 The images below reveal *why* the model can distinguish the classes.
-![Spectrogram Samples](/Users/cvk/.gemini/antigravity/brain/01826563-931a-4c4d-8c70-f4068a50c606/spectrogram_samples.png)
+![Spectrogram Samples](/Users/carl/.gemini/antigravity/brain/01826563-931a-4c4d-8c70-f4068a50c606/spectrogram_samples.png)
 
 *   **CLENCH:** Characterized by **Broadband Noise**. Notice the vertical "streaks" across all frequencies (0-500Hz). This looks like "static" or "fur" to a vision model.
 *   **RELAX:** Mostly empty, with some low-frequency hum (mains noise) at the bottom.

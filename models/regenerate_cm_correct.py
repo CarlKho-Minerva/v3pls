@@ -48,7 +48,7 @@ cm_variance = np.array([
 ])
 
 # Output directory
-arxiv_dir = "/Users/cvk/Downloads/CODELocalProjects/CP-PHASE3_sEMGMuscle-arXiv_25TPE/arXiv_submission_clean"
+arxiv_dir = "/Users/carl/Downloads/CODELocalProjects/CP-PHASE3_sEMGMuscle-arXiv_25TPE/arXiv_submission_clean"
 
 # --- GENERATE PLOTS ---
 plot_og_style_matrix(cm_threshold, "Threshold", f"{arxiv_dir}/cm_01_threshold.png")

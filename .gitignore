@@ -14,3 +14,4 @@ build/
 *.keras
 *.h5
 *.pkl
+.DS_Store

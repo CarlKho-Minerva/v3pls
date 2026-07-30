@@ -10,7 +10,7 @@ cm = np.array([[78,  6,  5],
 
 classes = ['CLENCH', 'NOISE', 'RELAX']
 
-output_path = "/Users/cvk/Downloads/CODELocalProjects/v2-emg-muscle/arXiv_submission_clean/cm_17_maxcrnn.png"
+output_path = "/Users/carl/Downloads/CODELocalProjects/v2-emg-muscle/arXiv_submission_clean/cm_17_maxcrnn.png"
 
 plt.figure(figsize=(6, 5))
 sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', xticklabels=classes, yticklabels=classes)

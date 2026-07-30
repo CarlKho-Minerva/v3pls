@@ -39,7 +39,7 @@ def save_cm(cm, model_name, output_path):
     print(f"Saved: {output_path}")
 
 # Generate images
-arxiv_dir = "/Users/cvk/Downloads/CODELocalProjects/CP-PHASE3_sEMGMuscle-arXiv_25TPE/arXiv_submission_clean"
+arxiv_dir = "/Users/carl/Downloads/CODELocalProjects/CP-PHASE3_sEMGMuscle-arXiv_25TPE/arXiv_submission_clean"
 
 save_cm(cm1, "Model 1: Threshold CM", f"{arxiv_dir}/cm_01_threshold.png")
 save_cm(cm2, "Model 2: Variance CM", f"{arxiv_dir}/cm_02_variance.png")
